@@ -1,0 +1,122 @@
+# Grommet Strip Planner
+
+A small web app that solves a very specific sewing problem: **how to evenly place grommets for corset lacing strip** so the spacing looks clean and professional, and the waist grommets land exactly where you need them.
+
+---
+
+## The Problem It Solves
+
+When lacing a corset, grommets are set into a fabric strip along the centre-back edges. Getting the spacing right by hand is tedious — you have to account for:
+
+- The total length of the strip
+- A margin at each end (so grommets don't tear out)
+- The physical size of each grommet (its external diameter)
+- An even gap between grommets so the lacing looks uniform
+- A **closer pair at the waist** — a traditional corset feature where the two grommets at the narrowest point are placed closer together so the lacing cinches more tightly there
+
+This app does all the maths instantly and shows you exactly where to mark each grommet centre on your fabric, and you can even print the results.
+
+---
+
+## Screenshots
+
+![Upper half of the app](assets/app-upperhalf.png)
+
+![Lower half of the app](assets/app-lowerhalf.png)
+
+---
+
+## Features
+
+### Inputs (left panel)
+| Field | What it does |
+|---|---|
+| **Strip length (mm)** | Total length of your grommet strip |
+| **End margin each side (mm)** | Empty space left at both ends before the first/last grommet |
+| **Grommet external diameter (mm)** | The outer diameter of your grommets |
+| **Number of grommets** | How many grommets to place |
+| **Waist position from strip start (mm)** | Where the waist falls, measured from the top of the strip |
+| **Use closer waist grommet pair** | Enable the corset waist feature |
+| **Waist pair edge gap (mm)** | The edge-to-edge space between the two waist grommets (only when the waist option is on) |
+
+### Layout diagram
+A live SVG diagram in the app shows:
+- The strip outline with margins marked in blue
+- All grommet circles (waist grommets highlighted in orange)
+- A horizontal centre line through all grommet centres
+- A red dashed waist marker
+- Dimension annotations: standard centre-to-centre, standard edge gap, waist centre-to-centre, and waist edge gap
+
+### Metrics
+Key measurements are displayed in a summary row:
+- Number of grommets, first centre, last centre, waist position
+- **Center spacing** broken down into Top (above waist) / Waist / Bottom (below waist)
+- **Edge-to-edge gap** broken down the same way
+
+### Grommet centre positions table
+A precise table listing every grommet with:
+- **Position** from the top edge of the strip (mm)
+- **Type**: Above waist / Upper waist grommet / Lower waist grommet / Below waist / Standard
+- **Centre spacing to next** grommet
+- **Edge gap to next** grommet
+
+### Printable export
+- **Download SVG (100% scale)** — a full-size SVG you can open in a browser or Inkscape and print at 100%, then cut out and use directly on your fabric as a marking template
+- **Download PDF Letter (100% scale, multi-page)** — the same template tiled across US Letter pages (landscape), automatically spanning as many pages as needed; includes alignment guides to join pages together
+
+Both exports embed all your input parameters so the template is self-documenting.
+
+---
+
+## How to Use
+
+### 1. Install dependencies
+
+```bash
+pip install -r requirements.txt
+```
+
+### 2. Run the app
+
+```bash
+streamlit run app.py
+```
+
+Then open the URL shown in your terminal (usually `http://localhost:8501`).
+
+### 3. Enter your measurements
+
+Start with just the basics:
+1. Enter your **strip length** and **end margin**
+2. Enter your **grommet diameter** (the external/outer diameter stamped on the packet)
+3. Set the **number of grommets** you want
+
+The diagram updates instantly as you type.
+
+### 4. Optional: add the waist pair
+
+1. Enter the **waist position** — measure from the top of your strip to where the waist sits on the body
+2. Tick **Use closer waist grommet pair**
+3. Adjust the **waist pair edge gap** — typically 2–5 mm, narrower than your standard gap
+
+The app will automatically distribute the remaining grommets proportionally above and below the waist based on available space.
+
+### 5. Check the results
+
+- Confirm the **edge gaps are positive** (no grommet overlap)
+- Read off the **centre positions** from the table — these are the points you mark on your fabric
+- The spacing should look even in the diagram
+
+### 6. Export a template
+
+Click **Download PDF Letter** and print at **100% / Actual size** (do **not** use "fit to page").  
+Cut along the strip outline and pin to your fabric to transfer the grommet centre marks.
+
+---
+
+## Tips
+
+- The **grommet diameter** is the outer ring, not the hole. Check the packaging — it is usually printed in mm.
+- If you get a **"Grommets overlap"** warning, either reduce the number of grommets, increase the strip length, or use smaller grommets.
+- For a standard corset, the waist gap is typically **2–4 mm** (noticeably tighter than the regular gap).
+- When printing the PDF, always verify scale with a ruler against the "Total length" dimension printed on the template before cutting.
