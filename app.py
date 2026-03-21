@@ -60,16 +60,16 @@ def _find_standard_pair_index(layout: GrommetLayout, use_closer_waist_pair: bool
     return None
 
 
-def _a4_landscape_layout(length_mm: float) -> tuple[float, float, float, float, int]:
-    page_w = 297.0
-    page_h = 210.0
+def _letter_landscape_layout(length_mm: float) -> tuple[float, float, float, float, int]:
+    page_w = 279.4
+    page_h = 215.9
     margin_mm = 10.0
     usable_w = page_w - (2 * margin_mm)
     page_count = max(1, int(-(-length_mm // usable_w)))
     return page_w, page_h, margin_mm, usable_w, page_count
 
 
-def build_printable_svg_a4(
+def build_printable_svg_letter(
     length_mm: float,
     margin_mm: float,
     radius_mm: float,
@@ -177,7 +177,7 @@ def build_printable_svg_a4(
     return "\n".join(svg), scale, orientation
 
 
-def build_printable_pdf_a4(
+def build_printable_pdf_letter(
     length_mm: float,
     margin_mm: float,
     radius_mm: float,
@@ -187,9 +187,9 @@ def build_printable_pdf_a4(
     if not REPORTLAB_AVAILABLE or RL_pagesizes is None or RL_units is None or RL_canvas_module is None:
         raise RuntimeError("PDF export requested but reportlab is not available.")
 
-    page_w, page_h, page_margin, usable_w, page_count = _a4_landscape_layout(length_mm)
+    page_w, page_h, page_margin, usable_w, page_count = _letter_landscape_layout(length_mm)
     scale = 1.0
-    page_size = RL_pagesizes.landscape(RL_pagesizes.A4)
+    page_size = RL_pagesizes.landscape(RL_pagesizes.LETTER)
     buffer = io.BytesIO()
     pdf = RL_canvas_module.Canvas(buffer, pagesize=page_size)
 
@@ -209,7 +209,7 @@ def build_printable_pdf_a4(
         segment_width = segment_end - segment_start
 
         pdf.setFont("Helvetica", 8)
-        pdf.drawString(mm_to_pt(10), mm_to_pt(page_h - 12), "Grommet template A4 landscape - print at 100% / actual size")
+        pdf.drawString(mm_to_pt(10), mm_to_pt(page_h - 12), "Grommet template Letter landscape - print at 100% / actual size")
         pdf.drawString(
             mm_to_pt(10),
             mm_to_pt(page_h - 17),
@@ -663,8 +663,8 @@ def main() -> None:
     else:
         st.info("No center positions to display for this configuration.")
 
-    st.subheader("Printable export (A4)")
-    printable_svg, printable_scale, printable_orientation = build_printable_svg_a4(
+    st.subheader("Printable export (Letter)")
+    printable_svg, printable_scale, printable_orientation = build_printable_svg_letter(
         length_mm=length_mm,
         margin_mm=margin_mm,
         radius_mm=radius_mm,
@@ -680,7 +680,7 @@ def main() -> None:
     )
 
     if REPORTLAB_AVAILABLE:
-        printable_pdf, pdf_page_count = build_printable_pdf_a4(
+        printable_pdf, pdf_page_count = build_printable_pdf_letter(
             length_mm=length_mm,
             margin_mm=margin_mm,
             radius_mm=radius_mm,
@@ -688,13 +688,13 @@ def main() -> None:
             use_closer_waist_pair=use_closer_waist_pair,
         )
         st.download_button(
-            "Download PDF A4 (100% scale, multi-page)",
+            "Download PDF Letter (100% scale, multi-page)",
             data=printable_pdf,
-            file_name="grommet_template_a4.pdf",
+            file_name="grommet_template_letter.pdf",
             mime="application/pdf",
             use_container_width=True,
         )
-        st.caption(f"PDF export uses A4 landscape at 100% scale and spans {pdf_page_count} page(s).")
+        st.caption(f"PDF export uses Letter landscape at 100% scale and spans {pdf_page_count} page(s).")
     else:
         st.caption("PDF export is unavailable because reportlab is not installed. SVG export is ready to print.")
 
