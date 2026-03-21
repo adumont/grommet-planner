@@ -2,65 +2,170 @@ from dataclasses import dataclass
 
 import pandas as pd
 import streamlit as st
+import streamlit.components.v1 as components
 
 
 @dataclass
 class GrommetLayout:
     centers_mm: list[float]
-    center_spacing_mm: float | None
-    edge_gap_mm: float | None
+    center_spacings_mm: list[float]
+    edge_gaps_mm: list[float]
+    uniform_center_spacing_mm: float | None
     start_center_mm: float
     end_center_mm: float
+    waist_position_mm: float
+    waist_pair_indices: tuple[int, int] | None
     warnings: list[str]
 
 
-def calculate_layout(length_mm: float, margin_mm: float, radius_mm: float, count: int) -> GrommetLayout:
+def _build_spacing_lists(centers_mm: list[float], radius_mm: float) -> tuple[list[float], list[float], float | None]:
+    center_spacings = [centers_mm[i + 1] - centers_mm[i] for i in range(len(centers_mm) - 1)]
+    edge_gaps = [spacing - (2 * radius_mm) for spacing in center_spacings]
+
+    if not center_spacings:
+        return center_spacings, edge_gaps, None
+
+    first_spacing = center_spacings[0]
+    is_uniform = all(abs(spacing - first_spacing) < 1e-9 for spacing in center_spacings)
+    return center_spacings, edge_gaps, (first_spacing if is_uniform else None)
+
+
+def calculate_layout(
+    length_mm: float,
+    margin_mm: float,
+    radius_mm: float,
+    count: int,
+    use_closer_waist_pair: bool,
+    waist_position_mm: float,
+    waist_edge_gap_mm: float,
+) -> GrommetLayout:
     warnings: list[str] = []
     start_center = margin_mm + radius_mm
     end_center = length_mm - margin_mm - radius_mm
 
+    if end_center - start_center < 0:
+        warnings.append("Margins + grommet size exceed strip length. Reduce margin/diameter or increase strip length.")
+        return GrommetLayout(
+            centers_mm=[],
+            center_spacings_mm=[],
+            edge_gaps_mm=[],
+            uniform_center_spacing_mm=None,
+            start_center_mm=start_center,
+            end_center_mm=end_center,
+            waist_position_mm=waist_position_mm,
+            waist_pair_indices=None,
+            warnings=warnings,
+        )
+
     if count == 1:
         center = length_mm / 2
         if center - radius_mm < margin_mm or center + radius_mm > (length_mm - margin_mm):
-            warnings.append("Single grommet does not fit inside strip with the selected margins/radius.")
+            warnings.append("Single grommet does not fit inside strip with the selected margins/diameter.")
+        center_spacings, edge_gaps, uniform_spacing = _build_spacing_lists([center], radius_mm)
         return GrommetLayout(
             centers_mm=[center],
-            center_spacing_mm=None,
-            edge_gap_mm=None,
+            center_spacings_mm=center_spacings,
+            edge_gaps_mm=edge_gaps,
+            uniform_center_spacing_mm=uniform_spacing,
             start_center_mm=center,
             end_center_mm=center,
+            waist_position_mm=waist_position_mm,
+            waist_pair_indices=None,
             warnings=warnings,
         )
 
-    span_for_centers = end_center - start_center
-    if span_for_centers < 0:
-        warnings.append("Margins + radii exceed strip length. Reduce margin/radius or increase strip length.")
+    if not use_closer_waist_pair:
+        span_for_centers = end_center - start_center
+        center_spacing = span_for_centers / (count - 1)
+        centers = [start_center + i * center_spacing for i in range(count)]
+        center_spacings, edge_gaps, uniform_spacing = _build_spacing_lists(centers, radius_mm)
+        if edge_gaps and min(edge_gaps) < 0:
+            warnings.append("Grommets overlap with current settings (negative edge-to-edge gap).")
+
+        return GrommetLayout(
+            centers_mm=centers,
+            center_spacings_mm=center_spacings,
+            edge_gaps_mm=edge_gaps,
+            uniform_center_spacing_mm=uniform_spacing,
+            start_center_mm=centers[0],
+            end_center_mm=centers[-1],
+            waist_position_mm=waist_position_mm,
+            waist_pair_indices=None,
+            warnings=warnings,
+        )
+
+    if count < 2:
+        warnings.append("Closer waist pair requires at least 2 grommets.")
         return GrommetLayout(
             centers_mm=[],
-            center_spacing_mm=None,
-            edge_gap_mm=None,
+            center_spacings_mm=[],
+            edge_gaps_mm=[],
+            uniform_center_spacing_mm=None,
             start_center_mm=start_center,
             end_center_mm=end_center,
+            waist_position_mm=waist_position_mm,
+            waist_pair_indices=None,
             warnings=warnings,
         )
 
-    center_spacing = span_for_centers / (count - 1)
-    edge_gap = center_spacing - 2 * radius_mm
-    if edge_gap < 0:
+    waist_center_spacing = (2 * radius_mm) + waist_edge_gap_mm
+    left_waist_center = waist_position_mm - (waist_center_spacing / 2)
+    right_waist_center = waist_position_mm + (waist_center_spacing / 2)
+
+    if left_waist_center < start_center or right_waist_center > end_center:
+        warnings.append(
+            "Waist pair does not fit between margins. Reduce waist gap/radius, move waist, or increase strip length."
+        )
+    if left_waist_center >= right_waist_center:
+        warnings.append("Invalid waist pair geometry.")
+
+    left_count = (count - 2) // 2
+    right_count = count - 2 - left_count
+
+    centers: list[float] = []
+
+    if left_count > 0:
+        step_left = (left_waist_center - start_center) / left_count
+        if step_left <= 0:
+            warnings.append("No space for left-side grommets before the waist pair.")
+        centers.extend(start_center + i * step_left for i in range(left_count))
+
+    centers.append(left_waist_center)
+    centers.append(right_waist_center)
+
+    if right_count > 0:
+        step_right = (end_center - right_waist_center) / right_count
+        if step_right <= 0:
+            warnings.append("No space for right-side grommets after the waist pair.")
+        centers.extend(right_waist_center + j * step_right for j in range(1, right_count + 1))
+
+    if any(centers[i + 1] <= centers[i] for i in range(len(centers) - 1)):
+        warnings.append("Computed centers are not strictly increasing. Check waist position and gap values.")
+
+    center_spacings, edge_gaps, uniform_spacing = _build_spacing_lists(centers, radius_mm)
+    if edge_gaps and min(edge_gaps) < 0:
         warnings.append("Grommets overlap with current settings (negative edge-to-edge gap).")
 
-    centers = [start_center + i * center_spacing for i in range(count)]
     return GrommetLayout(
         centers_mm=centers,
-        center_spacing_mm=center_spacing,
-        edge_gap_mm=edge_gap,
-        start_center_mm=start_center,
-        end_center_mm=end_center,
+        center_spacings_mm=center_spacings,
+        edge_gaps_mm=edge_gaps,
+        uniform_center_spacing_mm=uniform_spacing,
+        start_center_mm=centers[0] if centers else start_center,
+        end_center_mm=centers[-1] if centers else end_center,
+        waist_position_mm=waist_position_mm,
+        waist_pair_indices=(left_count, left_count + 1),
         warnings=warnings,
     )
 
 
-def build_svg(length_mm: float, margin_mm: float, radius_mm: float, layout: GrommetLayout) -> str:
+def build_svg(
+    length_mm: float,
+    margin_mm: float,
+    radius_mm: float,
+    layout: GrommetLayout,
+    use_closer_waist_pair: bool,
+) -> str:
     width_px = 1000
     strip_h_px = 120
     pad_x = 40
@@ -97,15 +202,39 @@ def build_svg(length_mm: float, margin_mm: float, radius_mm: float, layout: Grom
         ]
     )
 
-    for center in layout.centers_mm:
+    waist_x_mm = layout.waist_position_mm
+    if 0 <= waist_x_mm <= length_mm:
         svg.extend(
             [
-                f'<circle cx="{x_mm(center)}" cy="{center_y}" r="{radius_mm * scale_x}" fill="#bfdbfe" stroke="#1d4ed8" stroke-width="1.5"/>',
-                f'<line x1="{x_mm(center)}" y1="{rect_y}" x2="{x_mm(center)}" y2="{rect_y + strip_h_px}" stroke="#1d4ed8" stroke-dasharray="3 3" stroke-width="1"/>',
+                f'<line x1="{x_mm(waist_x_mm)}" y1="{rect_y - 2}" x2="{x_mm(waist_x_mm)}" y2="{rect_y + strip_h_px + 2}" stroke="#dc2626" stroke-dasharray="4 4" stroke-width="1.5"/>',
+                f'<text x="{x_mm(waist_x_mm)}" y="{rect_y + strip_h_px + 16}" text-anchor="middle" font-size="12" fill="#b91c1c">Waist: {waist_x_mm:.2f} mm</text>',
             ]
         )
 
-    if layout.center_spacing_mm is not None and len(layout.centers_mm) >= 2:
+    waist_left = waist_right = None
+    if (
+        layout.waist_pair_indices is not None
+        and layout.waist_pair_indices[1] < len(layout.centers_mm)
+    ):
+        waist_left = layout.centers_mm[layout.waist_pair_indices[0]]
+        waist_right = layout.centers_mm[layout.waist_pair_indices[1]]
+
+    for index, center in enumerate(layout.centers_mm):
+        is_waist_pair = (
+            layout.waist_pair_indices is not None
+            and index in layout.waist_pair_indices
+            and use_closer_waist_pair
+        )
+        fill = "#fdba74" if is_waist_pair else "#bfdbfe"
+        stroke = "#c2410c" if is_waist_pair else "#1d4ed8"
+        svg.extend(
+            [
+                f'<circle cx="{x_mm(center)}" cy="{center_y}" r="{radius_mm * scale_x}" fill="{fill}" stroke="{stroke}" stroke-width="1.5"/>',
+                f'<line x1="{x_mm(center)}" y1="{rect_y}" x2="{x_mm(center)}" y2="{rect_y + strip_h_px}" stroke="{stroke}" stroke-dasharray="3 3" stroke-width="1"/>',
+            ]
+        )
+
+    if layout.uniform_center_spacing_mm is not None and len(layout.centers_mm) >= 2:
         c1 = layout.centers_mm[0]
         c2 = layout.centers_mm[1]
         y_dim = rect_y + strip_h_px + 18
@@ -114,7 +243,18 @@ def build_svg(length_mm: float, margin_mm: float, radius_mm: float, layout: Grom
                 f'<line x1="{x_mm(c1)}" y1="{y_dim}" x2="{x_mm(c2)}" y2="{y_dim}" stroke="#16a34a" stroke-width="1.5"/>',
                 f'<line x1="{x_mm(c1)}" y1="{y_dim - 5}" x2="{x_mm(c1)}" y2="{y_dim + 5}" stroke="#16a34a" stroke-width="1"/>',
                 f'<line x1="{x_mm(c2)}" y1="{y_dim - 5}" x2="{x_mm(c2)}" y2="{y_dim + 5}" stroke="#16a34a" stroke-width="1"/>',
-                f'<text x="{(x_mm(c1) + x_mm(c2)) / 2}" y="{y_dim - 6}" text-anchor="middle" font-size="12" fill="#166534">Center spacing: {layout.center_spacing_mm:.2f} mm</text>',
+                f'<text x="{(x_mm(c1) + x_mm(c2)) / 2}" y="{y_dim - 6}" text-anchor="middle" font-size="12" fill="#166534">Center spacing: {layout.uniform_center_spacing_mm:.2f} mm</text>',
+            ]
+        )
+
+    if use_closer_waist_pair and waist_left is not None and waist_right is not None:
+        y_gap = rect_y + strip_h_px + 30
+        svg.extend(
+            [
+                f'<line x1="{x_mm(waist_left + radius_mm)}" y1="{y_gap}" x2="{x_mm(waist_right - radius_mm)}" y2="{y_gap}" stroke="#ea580c" stroke-width="1.6"/>',
+                f'<line x1="{x_mm(waist_left + radius_mm)}" y1="{y_gap - 5}" x2="{x_mm(waist_left + radius_mm)}" y2="{y_gap + 5}" stroke="#ea580c" stroke-width="1"/>',
+                f'<line x1="{x_mm(waist_right - radius_mm)}" y1="{y_gap - 5}" x2="{x_mm(waist_right - radius_mm)}" y2="{y_gap + 5}" stroke="#ea580c" stroke-width="1"/>',
+                f'<text x="{(x_mm(waist_left) + x_mm(waist_right)) / 2}" y="{y_gap - 6}" text-anchor="middle" font-size="12" fill="#9a3412">Waist edge gap: {waist_right - waist_left - (2 * radius_mm):.2f} mm</text>',
             ]
         )
 
@@ -130,28 +270,75 @@ def main() -> None:
     left, right = st.columns([1, 2], gap="large")
 
     with left:
-        length_mm = st.number_input("Strip length (mm)", min_value=1.0, value=500.0, step=1.0)
+        length_mm = st.number_input("Strip length (mm)", min_value=1.0, value=350.0, step=1.0)
         margin_mm = st.number_input("End margin each side (mm)", min_value=0.0, value=20.0, step=0.5)
-        radius_mm = st.number_input("Grommet external radius (mm)", min_value=0.1, value=5.0, step=0.1)
-        count = st.slider("Number of grommets", min_value=1, max_value=40, value=6, step=1)
+        diameter_mm = st.number_input("Grommet external diameter (mm)", min_value=1, value=9, step=1)
+        radius_mm = diameter_mm / 2
+        count = st.number_input("Number of grommets", min_value=1, value=6, step=1)
+        waist_position_mm = st.number_input(
+            "Waist position from strip start (mm)",
+            min_value=0.0,
+            max_value=float(length_mm),
+            value=float(length_mm / 2),
+            step=0.5,
+        )
+        use_closer_waist_pair = st.checkbox("Use closer waist grommet pair", value=False)
+        waist_edge_gap_mm = st.number_input(
+            "Waist pair edge gap (mm)",
+            min_value=0.0,
+            value=3.0,
+            step=0.5,
+            disabled=not use_closer_waist_pair,
+            help="Distance between the two waist grommets measured edge-to-edge, centered at the waist.",
+        )
 
-    layout = calculate_layout(length_mm, margin_mm, radius_mm, count)
+    layout = calculate_layout(
+        length_mm=length_mm,
+        margin_mm=margin_mm,
+        radius_mm=radius_mm,
+        count=count,
+        use_closer_waist_pair=use_closer_waist_pair,
+        waist_position_mm=waist_position_mm,
+        waist_edge_gap_mm=waist_edge_gap_mm,
+    )
 
     with right:
         st.subheader("Layout diagram")
-        st.components.v1.html(build_svg(length_mm, margin_mm, radius_mm, layout), height=280)
+        components.html(
+            build_svg(
+                length_mm=length_mm,
+                margin_mm=margin_mm,
+                radius_mm=radius_mm,
+                layout=layout,
+                use_closer_waist_pair=use_closer_waist_pair,
+            ),
+            height=280,
+        )
 
-    metric_cols = st.columns(4)
+    metric_cols = st.columns(5)
     metric_cols[0].metric("Grommets", f"{count}")
     metric_cols[1].metric("First center", f"{layout.start_center_mm:.2f} mm")
     metric_cols[2].metric("Last center", f"{layout.end_center_mm:.2f} mm")
-    metric_cols[3].metric(
+    metric_cols[3].metric("Waist position", f"{waist_position_mm:.2f} mm")
+    metric_cols[4].metric(
         "Center spacing",
-        "-" if layout.center_spacing_mm is None else f"{layout.center_spacing_mm:.2f} mm",
+        "-"
+        if not layout.center_spacings_mm
+        else (
+            f"{layout.uniform_center_spacing_mm:.2f} mm"
+            if layout.uniform_center_spacing_mm is not None
+            else f"{min(layout.center_spacings_mm):.2f}..{max(layout.center_spacings_mm):.2f} mm"
+        ),
     )
 
-    if layout.edge_gap_mm is not None:
-        st.metric("Edge-to-edge gap between adjacent grommets", f"{layout.edge_gap_mm:.2f} mm")
+    if layout.edge_gaps_mm:
+        if len(layout.edge_gaps_mm) == 1:
+            st.metric("Edge-to-edge gap", f"{layout.edge_gaps_mm[0]:.2f} mm")
+        else:
+            st.metric(
+                "Edge-to-edge gaps",
+                f"{min(layout.edge_gaps_mm):.2f}..{max(layout.edge_gaps_mm):.2f} mm",
+            )
 
     if layout.warnings:
         for warning in layout.warnings:
@@ -161,10 +348,30 @@ def main() -> None:
 
     st.subheader("Grommet center positions")
     if layout.centers_mm:
+        labels = ["Standard"] * len(layout.centers_mm)
+        if layout.waist_pair_indices is not None and use_closer_waist_pair:
+            left_index, right_index = layout.waist_pair_indices
+            if left_index < len(labels):
+                labels[left_index] = "Waist left"
+            if right_index < len(labels):
+                labels[right_index] = "Waist right"
+
+        spacing_to_next = [
+            round(layout.center_spacings_mm[i], 3) if i < len(layout.center_spacings_mm) else None
+            for i in range(len(layout.centers_mm))
+        ]
+        edge_gap_to_next = [
+            round(layout.edge_gaps_mm[i], 3) if i < len(layout.edge_gaps_mm) else None
+            for i in range(len(layout.centers_mm))
+        ]
+
         df = pd.DataFrame(
             {
                 "Grommet #": list(range(1, len(layout.centers_mm) + 1)),
                 "Center from left edge (mm)": [round(v, 3) for v in layout.centers_mm],
+                "Type": labels,
+                "Center spacing to next (mm)": spacing_to_next,
+                "Edge gap to next (mm)": edge_gap_to_next,
             }
         )
         st.dataframe(df, use_container_width=True, hide_index=True)
