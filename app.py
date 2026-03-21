@@ -1,3 +1,7 @@
+# Grommet Strip Planner
+# Copyright (C) 2023 Alexandre Dumont <adumont@gmail.com>
+# SPDX-License-Identifier: GPL-3.0-only
+
 from dataclasses import dataclass
 import io
 from typing import Any

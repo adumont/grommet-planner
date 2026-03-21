@@ -124,3 +124,9 @@ Cut along the strip outline and pin to your fabric to transfer the grommet centr
 - If you get a **"Grommets overlap"** warning, either reduce the number of grommets, increase the strip length, or use smaller grommets.
 - For a standard corset, the waist gap is typically **2–4 mm** (noticeably tighter than the regular gap).
 - When printing the PDF, always verify scale with a ruler against the "Total length" dimension printed on the template before cutting.
+
+---
+
+## License
+
+This project is licensed under **GPL-3.0-only** and is free to use.
