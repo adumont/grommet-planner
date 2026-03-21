@@ -650,15 +650,15 @@ def main() -> None:
     with sp_col:
         st.markdown("**Center spacing**")
         sp_inner = st.columns(3)
-        sp_inner[0].metric("Left", sp_left)
-        sp_inner[1].metric("Waist", sp_waist)
-        sp_inner[2].metric("Right", sp_right)
+        sp_inner[0].metric("Top (above waist)", sp_left)
+        sp_inner[1].metric("Upper/Lower waist grommet", sp_waist)
+        sp_inner[2].metric("Bottom (below waist)", sp_right)
     with eg_col:
         st.markdown("**Edge-to-edge gap**")
         eg_inner = st.columns(3)
-        eg_inner[0].metric("Left", eg_left)
-        eg_inner[1].metric("Waist", eg_waist)
-        eg_inner[2].metric("Right", eg_right)
+        eg_inner[0].metric("Top (above waist)", eg_left)
+        eg_inner[1].metric("Upper/Lower waist grommet", eg_waist)
+        eg_inner[2].metric("Bottom (below waist)", eg_right)
 
     if layout.warnings:
         for warning in layout.warnings:
@@ -668,13 +668,17 @@ def main() -> None:
 
     st.subheader("Grommet center positions")
     if layout.centers_mm:
-        labels = ["Standard"] * len(layout.centers_mm)
         if layout.waist_pair_indices is not None and use_closer_waist_pair:
             left_index, right_index = layout.waist_pair_indices
-            if left_index < len(labels):
-                labels[left_index] = "Waist left"
-            if right_index < len(labels):
-                labels[right_index] = "Waist right"
+            labels = [
+                "Upper waist grommet" if i == left_index
+                else "Lower waist grommet" if i == right_index
+                else "Above waist" if i < left_index
+                else "Below waist"
+                for i in range(len(layout.centers_mm))
+            ]
+        else:
+            labels = ["Standard"] * len(layout.centers_mm)
 
         spacing_to_next = [
             round(layout.center_spacings_mm[i], 3) if i < len(layout.center_spacings_mm) else None
