@@ -1,6 +1,6 @@
 # Grommet Strip Planner
 
-A small web app that solves a very specific sewing problem: **how to evenly place grommets for corset lacing strip** so the spacing looks clean and professional, and the waist grommets land exactly where you need them.
+A small web app that solves a very specific sewing problem: **how to evenly place grommets on a corset lacing strip** so the spacing looks clean and professional, and the waist grommets land exactly where you need them.
 
 ---
 
@@ -39,6 +39,8 @@ This app does all the maths instantly and shows you exactly where to mark each g
 | **Use closer waist grommet pair** | Enable the corset waist feature |
 | **Waist pair edge gap (mm)** | The edge-to-edge space between the two waist grommets (only when the waist option is on) |
 
+You can switch units with **Use imperial units (inches)**. The app converts automatically and keeps calculations precise internally.
+
 ### Layout diagram
 A live SVG diagram in the app shows:
 - The strip outline with margins marked in blue
@@ -50,12 +52,12 @@ A live SVG diagram in the app shows:
 ### Metrics
 Key measurements are displayed in a summary row:
 - Number of grommets, first centre, last centre, waist position
-- **Center spacing** broken down into Top (above waist) / Waist / Bottom (below waist)
+- **Center spacing** broken down into Top (above waist) / Upper-Lower waist grommet / Bottom (below waist)
 - **Edge-to-edge gap** broken down the same way
 
 ### Grommet centre positions table
 A precise table listing every grommet with:
-- **Position** from the top edge of the strip (mm)
+- **Position** from the strip start (in mm or inches, based on selected unit)
 - **Type**: Above waist / Upper waist grommet / Lower waist grommet / Below waist / Standard
 - **Centre spacing to next** grommet
 - **Edge gap to next** grommet
@@ -64,7 +66,7 @@ A precise table listing every grommet with:
 - **Download SVG (100% scale)** — a full-size SVG you can open in a browser or Inkscape and print at 100%, then cut out and use directly on your fabric as a marking template
 - **Download PDF Letter (100% scale, multi-page)** — the same template tiled across US Letter pages (landscape), automatically spanning as many pages as needed; includes alignment guides to join pages together. It also prints fine on **A4 paper** as long as you keep printing at **100% / Actual size**.
 
-Both exports embed all your input parameters so the template is self-documenting.
+Both exports embed all your input parameters and show measurements in **both mm and inches** so the template is self-documenting.
 
 ---
 
@@ -87,9 +89,10 @@ Then open the URL shown in your terminal (usually `http://localhost:8501`).
 ### 3. Enter your measurements
 
 Start with just the basics:
-1. Enter your **strip length** and **end margin**
-2. Enter your **grommet diameter** (the external/outer diameter stamped on the packet)
-3. Set the **number of grommets** you want
+1. Choose units: **mm** or **inches**
+2. Enter your **strip length** and **end margin**
+3. Enter your **grommet diameter** (the external/outer diameter stamped on the packet)
+4. Set the **number of grommets** you want
 
 The diagram updates instantly as you type.
 
@@ -117,6 +120,7 @@ Cut along the strip outline and pin to your fabric to transfer the grommet centr
 ## Tips
 
 - The **grommet diameter** is the outer ring, not the hole. Check the packaging — it is usually printed in mm.
+- You can work in inches if preferred; exports always include both **mm and inches** for clarity.
 - If you get a **"Grommets overlap"** warning, either reduce the number of grommets, increase the strip length, or use smaller grommets.
 - For a standard corset, the waist gap is typically **2–4 mm** (noticeably tighter than the regular gap).
 - When printing the PDF, always verify scale with a ruler against the "Total length" dimension printed on the template before cutting.

@@ -20,6 +20,9 @@ except Exception:
     REPORTLAB_AVAILABLE = False
 
 
+MM_PER_INCH = 25.4
+
+
 @dataclass
 class GrommetLayout:
     centers_mm: list[float]
@@ -91,6 +94,9 @@ def build_printable_svg_letter(
     def x_pos(value_mm: float) -> float:
         return start_x + value_mm * scale
 
+    def fmt_both(value_mm: float) -> str:
+        return f"{value_mm:.2f} mm ({value_mm / MM_PER_INCH:.3f} in)"
+
     svg: list[str] = [
         f'<svg xmlns="http://www.w3.org/2000/svg" width="{page_w}mm" height="{page_h}mm" viewBox="0 0 {page_w} {page_h}">',
         f'<rect x="0.5" y="0.5" width="{page_w - 1}" height="{page_h - 1}" fill="white" stroke="#d4d4d8" stroke-width="0.5"/>',
@@ -98,7 +104,7 @@ def build_printable_svg_letter(
         f'<text x="{page_margin}" y="16" font-size="5" fill="#18181b">Print setting: Actual size / 100%. Drawing scale: {scale * 100:.2f}%</text>',
         f'<rect x="{x_pos(0)}" y="{strip_y}" width="{length_mm * scale}" height="{strip_h}" fill="#ffffff" stroke="#111827" stroke-width="0.6"/>',
         f'<line x1="{x_pos(0)}" y1="{strip_y + strip_h + 6}" x2="{x_pos(length_mm)}" y2="{strip_y + strip_h + 6}" stroke="#111827" stroke-width="0.4"/>',
-        f'<text x="{(x_pos(0) + x_pos(length_mm)) / 2}" y="{strip_y + strip_h + 11}" text-anchor="middle" font-size="4.5" fill="#111827">Total length: {length_mm:.2f} mm</text>',
+        f'<text x="{(x_pos(0) + x_pos(length_mm)) / 2}" y="{strip_y + strip_h + 11}" text-anchor="middle" font-size="4.5" fill="#111827">Total length: {fmt_both(length_mm)}</text>',
         f'<line x1="{x_pos(0)}" y1="{strip_y - 5}" x2="{x_pos(margin_mm)}" y2="{strip_y - 5}" stroke="#0369a1" stroke-width="0.5"/>',
         f'<line x1="{x_pos(length_mm - margin_mm)}" y1="{strip_y - 5}" x2="{x_pos(length_mm)}" y2="{strip_y - 5}" stroke="#0369a1" stroke-width="0.5"/>',
     ]
@@ -128,7 +134,7 @@ def build_printable_svg_letter(
         svg.extend(
             [
                 f'<line x1="{x_pos(waist_x)}" y1="{strip_y - 7}" x2="{x_pos(waist_x)}" y2="{strip_y + strip_h + 7}" stroke="#b91c1c" stroke-width="0.45" stroke-dasharray="1.5 1.5"/>',
-                f'<text x="{x_pos(waist_x)}" y="{strip_y + strip_h + 18}" text-anchor="middle" font-size="4.3" fill="#b91c1c">Waist: {waist_x:.2f} mm</text>',
+                f'<text x="{x_pos(waist_x)}" y="{strip_y + strip_h + 18}" text-anchor="middle" font-size="4.3" fill="#b91c1c">Waist: {fmt_both(waist_x)}</text>',
             ]
         )
 
@@ -145,11 +151,11 @@ def build_printable_svg_letter(
                 f'<line x1="{x_pos(c1)}" y1="{y_c2c}" x2="{x_pos(c2)}" y2="{y_c2c}" stroke="#166534" stroke-width="0.55"/>',
                 f'<line x1="{x_pos(c1)}" y1="{y_c2c - 2}" x2="{x_pos(c1)}" y2="{y_c2c + 2}" stroke="#166534" stroke-width="0.4"/>',
                 f'<line x1="{x_pos(c2)}" y1="{y_c2c - 2}" x2="{x_pos(c2)}" y2="{y_c2c + 2}" stroke="#166534" stroke-width="0.4"/>',
-                f'<text x="{(x_pos(c1) + x_pos(c2)) / 2}" y="{y_c2c - 3}" text-anchor="middle" font-size="4.2" fill="#166534">Standard center-to-center: {c2c:.2f} mm</text>',
+                f'<text x="{(x_pos(c1) + x_pos(c2)) / 2}" y="{y_c2c - 3}" text-anchor="middle" font-size="4.2" fill="#166534">Standard center-to-center: {fmt_both(c2c)}</text>',
                 f'<line x1="{x_pos(c1 + radius_mm)}" y1="{y_gap}" x2="{x_pos(c2 - radius_mm)}" y2="{y_gap}" stroke="#0f766e" stroke-width="0.55"/>',
                 f'<line x1="{x_pos(c1 + radius_mm)}" y1="{y_gap - 2}" x2="{x_pos(c1 + radius_mm)}" y2="{y_gap + 2}" stroke="#0f766e" stroke-width="0.4"/>',
                 f'<line x1="{x_pos(c2 - radius_mm)}" y1="{y_gap - 2}" x2="{x_pos(c2 - radius_mm)}" y2="{y_gap + 2}" stroke="#0f766e" stroke-width="0.4"/>',
-                f'<text x="{(x_pos(c1) + x_pos(c2)) / 2}" y="{y_gap - 3}" text-anchor="middle" font-size="4.2" fill="#0f766e">Standard edge gap: {edge_gap:.2f} mm</text>',
+                f'<text x="{(x_pos(c1) + x_pos(c2)) / 2}" y="{y_gap - 3}" text-anchor="middle" font-size="4.2" fill="#0f766e">Standard edge gap: {fmt_both(edge_gap)}</text>',
             ]
         )
 
@@ -162,26 +168,26 @@ def build_printable_svg_letter(
                 f'<line x1="{x_pos(waist_left)}" y1="{y_waist_top}" x2="{x_pos(waist_right)}" y2="{y_waist_top}" stroke="#b45309" stroke-width="0.55"/>',
                 f'<line x1="{x_pos(waist_left)}" y1="{y_waist_top - 2}" x2="{x_pos(waist_left)}" y2="{y_waist_top + 2}" stroke="#b45309" stroke-width="0.4"/>',
                 f'<line x1="{x_pos(waist_right)}" y1="{y_waist_top - 2}" x2="{x_pos(waist_right)}" y2="{y_waist_top + 2}" stroke="#b45309" stroke-width="0.4"/>',
-                f'<text x="{(x_pos(waist_left) + x_pos(waist_right)) / 2}" y="{y_waist_top - 3}" text-anchor="middle" font-size="4.2" fill="#92400e">Waist center-to-center: {waist_c2c:.2f} mm</text>',
+                f'<text x="{(x_pos(waist_left) + x_pos(waist_right)) / 2}" y="{y_waist_top - 3}" text-anchor="middle" font-size="4.2" fill="#92400e">Waist center-to-center: {fmt_both(waist_c2c)}</text>',
                 f'<line x1="{x_pos(waist_left + radius_mm)}" y1="{y_waist_gap}" x2="{x_pos(waist_right - radius_mm)}" y2="{y_waist_gap}" stroke="#ea580c" stroke-width="0.55"/>',
                 f'<line x1="{x_pos(waist_left + radius_mm)}" y1="{y_waist_gap - 2}" x2="{x_pos(waist_left + radius_mm)}" y2="{y_waist_gap + 2}" stroke="#ea580c" stroke-width="0.4"/>',
                 f'<line x1="{x_pos(waist_right - radius_mm)}" y1="{y_waist_gap - 2}" x2="{x_pos(waist_right - radius_mm)}" y2="{y_waist_gap + 2}" stroke="#ea580c" stroke-width="0.4"/>',
-                f'<text x="{(x_pos(waist_left) + x_pos(waist_right)) / 2}" y="{y_waist_gap - 3}" text-anchor="middle" font-size="4.2" fill="#9a3412">Waist edge gap: {waist_c2c - (2 * radius_mm):.2f} mm</text>',
+                f'<text x="{(x_pos(waist_left) + x_pos(waist_right)) / 2}" y="{y_waist_gap - 3}" text-anchor="middle" font-size="4.2" fill="#9a3412">Waist edge gap: {fmt_both(waist_c2c - (2 * radius_mm))}</text>',
             ]
         )
 
-    centers_text = [f"{idx + 1}:{value:.2f}" for idx, value in enumerate(layout.centers_mm)]
+    centers_text = [f"{idx + 1}:{value:.2f}mm/{value / MM_PER_INCH:.3f}in" for idx, value in enumerate(layout.centers_mm)]
     chunk_size = 10
     base_y = strip_y + strip_h + 58
     for line_index in range(0, len(centers_text), chunk_size):
         chunk = centers_text[line_index : line_index + chunk_size]
         svg.append(
-            f'<text x="{page_margin}" y="{base_y + (line_index // chunk_size) * 6}" font-size="4.1" fill="#18181b">Centers (mm) {", ".join(chunk)}</text>'
+            f'<text x="{page_margin}" y="{base_y + (line_index // chunk_size) * 6}" font-size="4.1" fill="#18181b">Centers (mm/in) {", ".join(chunk)}</text>'
         )
 
     param_y = 130.0
-    waist_info = f"  |  Waist at: {layout.waist_position_mm:.2f} mm  |  Waist edge gap: {waist_edge_gap_mm:.2f} mm" if use_closer_waist_pair else ""
-    param_line1 = f"Strip length: {length_mm:.2f} mm   |   Margin: {margin_mm:.2f} mm   |   Diameter: {radius_mm * 2:.2f} mm   |   Grommets: {count}"
+    waist_info = f"  |  Waist at: {fmt_both(layout.waist_position_mm)}  |  Waist edge gap: {fmt_both(waist_edge_gap_mm)}" if use_closer_waist_pair else ""
+    param_line1 = f"Strip length: {fmt_both(length_mm)}   |   Margin: {fmt_both(margin_mm)}   |   Diameter: {fmt_both(radius_mm * 2)}   |   Grommets: {count}"
     param_line2 = f"Waist pair: {'Yes' + waist_info if use_closer_waist_pair else 'No'}"
     svg.extend([
         f'<rect x="{page_margin}" y="{param_y - 5}" width="{page_w - 2 * page_margin}" height="18" fill="#f8fafc" stroke="#e2e8f0" stroke-width="0.4" rx="1"/>',
@@ -218,6 +224,9 @@ def build_printable_pdf_letter(
     def mm_to_pt(value_mm: float) -> float:
         return value_mm * RL_units.mm
 
+    def fmt_both(value_mm: float) -> str:
+        return f"{value_mm:.2f} mm ({value_mm / MM_PER_INCH:.3f} in)"
+
     def x_local(global_mm: float, segment_start_mm: float) -> float:
         return page_margin + (global_mm - segment_start_mm)
 
@@ -231,14 +240,14 @@ def build_printable_pdf_letter(
         pdf.drawString(
             mm_to_pt(10),
             mm_to_pt(page_h - 17),
-            f"Page {page_index + 1}/{page_count} | Segment {segment_start:.2f}..{segment_end:.2f} mm | Scale 100%",
+            f"Page {page_index + 1}/{page_count} | Segment {fmt_both(segment_start)}..{fmt_both(segment_end)} | Scale 100%",
         )
 
         pdf.setLineWidth(0.8)
         pdf.rect(mm_to_pt(page_margin), mm_to_pt(page_h - (strip_y + strip_h)), mm_to_pt(segment_width), mm_to_pt(strip_h))
 
-        left_boundary_label = f"X={segment_start:.2f}"
-        right_boundary_label = f"X={segment_end:.2f}"
+        left_boundary_label = f"X={segment_start:.2f} mm / {segment_start / MM_PER_INCH:.3f} in"
+        right_boundary_label = f"X={segment_end:.2f} mm / {segment_end / MM_PER_INCH:.3f} in"
         pdf.setFont("Helvetica", 6)
         pdf.drawString(mm_to_pt(page_margin), mm_to_pt(page_h - (strip_y + strip_h + 4)), left_boundary_label)
         pdf.drawRightString(mm_to_pt(page_margin + segment_width), mm_to_pt(page_h - (strip_y + strip_h + 4)), right_boundary_label)
@@ -285,15 +294,15 @@ def build_printable_pdf_letter(
             pdf.drawString(mm_to_pt(page_margin + segment_width - 32), mm_to_pt(page_h - (strip_y + strip_h + 12)), "Join next page here")
 
         pdf.setFont("Helvetica", 6)
-        pdf.drawString(mm_to_pt(10), mm_to_pt(page_h - (strip_y + strip_h + 14)), f"Total length: {length_mm:.2f} mm   Margin: {margin_mm:.2f} mm   Diameter: {radius_mm * 2:.2f} mm   Grommets: {count}")
-        waist_info = f"Waist at: {layout.waist_position_mm:.2f} mm   Waist edge gap: {waist_edge_gap_mm:.2f} mm" if use_closer_waist_pair else "Waist pair: No"
+        pdf.drawString(mm_to_pt(10), mm_to_pt(page_h - (strip_y + strip_h + 14)), f"Total length: {fmt_both(length_mm)}   Margin: {fmt_both(margin_mm)}   Diameter: {fmt_both(radius_mm * 2)}   Grommets: {count}")
+        waist_info = f"Waist at: {fmt_both(layout.waist_position_mm)}   Waist edge gap: {fmt_both(waist_edge_gap_mm)}" if use_closer_waist_pair else "Waist pair: No"
         pdf.drawString(mm_to_pt(10), mm_to_pt(page_h - (strip_y + strip_h + 19)), waist_info)
-        centers_on_page = [f"{idx + 1}:{v:.2f}" for idx, v in enumerate(layout.centers_mm) if segment_start <= v <= segment_end]
+        centers_on_page = [f"{idx + 1}:{v:.2f}mm/{v / MM_PER_INCH:.3f}in" for idx, v in enumerate(layout.centers_mm) if segment_start <= v <= segment_end]
         if centers_on_page:
             pdf.drawString(
                 mm_to_pt(10),
                 mm_to_pt(page_h - (strip_y + strip_h + 24)),
-                f"Centers on this page (mm): {', '.join(centers_on_page[:12])}",
+                f"Centers on this page (mm/in): {', '.join(centers_on_page[:10])}",
             )
 
         pdf.showPage()
@@ -455,6 +464,8 @@ def build_svg(
     radius_mm: float,
     layout: GrommetLayout,
     use_closer_waist_pair: bool,
+    display_unit: str,
+    display_factor: float,
 ) -> str:
     width_px = 1000
     strip_h_px = 120
@@ -469,6 +480,9 @@ def build_svg(
     def x_mm(mm: float) -> float:
         return pad_x + mm * scale_x
 
+    def disp(mm_value: float) -> float:
+        return mm_value * display_factor
+
     rect_x = x_mm(0)
     rect_y = pad_y
     rect_w = x_mm(length_mm) - x_mm(0)
@@ -479,7 +493,7 @@ def build_svg(
         f'<line x1="{x_mm(0)}" y1="{rect_y + strip_h_px + 40}" x2="{x_mm(length_mm)}" y2="{rect_y + strip_h_px + 40}" stroke="#3f3f46" stroke-width="1"/>',
         f'<line x1="{x_mm(0)}" y1="{rect_y + strip_h_px + 34}" x2="{x_mm(0)}" y2="{rect_y + strip_h_px + 46}" stroke="#3f3f46" stroke-width="1"/>',
         f'<line x1="{x_mm(length_mm)}" y1="{rect_y + strip_h_px + 34}" x2="{x_mm(length_mm)}" y2="{rect_y + strip_h_px + 46}" stroke="#3f3f46" stroke-width="1"/>',
-        f'<text x="{(x_mm(0) + x_mm(length_mm)) / 2}" y="{rect_y + strip_h_px + 62}" text-anchor="middle" font-size="14" fill="#18181b">Total length: {length_mm:.2f} mm</text>',
+        f'<text x="{(x_mm(0) + x_mm(length_mm)) / 2}" y="{rect_y + strip_h_px + 62}" text-anchor="middle" font-size="14" fill="#18181b">Total length: {disp(length_mm):.2f} {display_unit}</text>',
     ]
 
     margin_y = rect_y - 10
@@ -487,8 +501,8 @@ def build_svg(
         [
             f'<line x1="{x_mm(0)}" y1="{margin_y}" x2="{x_mm(margin_mm)}" y2="{margin_y}" stroke="#0ea5e9" stroke-width="1.5"/>',
             f'<line x1="{x_mm(length_mm - margin_mm)}" y1="{margin_y}" x2="{x_mm(length_mm)}" y2="{margin_y}" stroke="#0ea5e9" stroke-width="1.5"/>',
-            f'<text x="{(x_mm(0) + x_mm(margin_mm)) / 2}" y="{margin_y - 6}" text-anchor="middle" font-size="12" fill="#0369a1">Margin: {margin_mm:.2f} mm</text>',
-            f'<text x="{(x_mm(length_mm - margin_mm) + x_mm(length_mm)) / 2}" y="{margin_y - 6}" text-anchor="middle" font-size="12" fill="#0369a1">Margin: {margin_mm:.2f} mm</text>',
+            f'<text x="{(x_mm(0) + x_mm(margin_mm)) / 2}" y="{margin_y - 6}" text-anchor="middle" font-size="12" fill="#0369a1">Margin: {disp(margin_mm):.2f} {display_unit}</text>',
+            f'<text x="{(x_mm(length_mm - margin_mm) + x_mm(length_mm)) / 2}" y="{margin_y - 6}" text-anchor="middle" font-size="12" fill="#0369a1">Margin: {disp(margin_mm):.2f} {display_unit}</text>',
         ]
     )
 
@@ -497,7 +511,7 @@ def build_svg(
         svg.extend(
             [
                 f'<line x1="{x_mm(waist_x_mm)}" y1="{rect_y - 2}" x2="{x_mm(waist_x_mm)}" y2="{rect_y + strip_h_px + 2}" stroke="#dc2626" stroke-dasharray="4 4" stroke-width="1.5"/>',
-                f'<text x="{x_mm(waist_x_mm)}" y="{rect_y + strip_h_px + 16}" text-anchor="middle" font-size="12" fill="#b91c1c">Waist: {waist_x_mm:.2f} mm</text>',
+                f'<text x="{x_mm(waist_x_mm)}" y="{rect_y + strip_h_px + 16}" text-anchor="middle" font-size="12" fill="#b91c1c">Waist: {disp(waist_x_mm):.2f} {display_unit}</text>',
             ]
         )
 
@@ -543,11 +557,11 @@ def build_svg(
                 f'<line x1="{x_mm(c1)}" y1="{y_dim_c2c}" x2="{x_mm(c2)}" y2="{y_dim_c2c}" stroke="#16a34a" stroke-width="1.5"/>',
                 f'<line x1="{x_mm(c1)}" y1="{y_dim_c2c - 5}" x2="{x_mm(c1)}" y2="{y_dim_c2c + 5}" stroke="#16a34a" stroke-width="1"/>',
                 f'<line x1="{x_mm(c2)}" y1="{y_dim_c2c - 5}" x2="{x_mm(c2)}" y2="{y_dim_c2c + 5}" stroke="#16a34a" stroke-width="1"/>',
-                f'<text x="{(x_mm(c1) + x_mm(c2)) / 2}" y="{y_dim_c2c - 6}" text-anchor="middle" font-size="12" fill="#166534">Standard center-to-center: {center_to_center:.2f} mm</text>',
+                f'<text x="{(x_mm(c1) + x_mm(c2)) / 2}" y="{y_dim_c2c - 6}" text-anchor="middle" font-size="12" fill="#166534">Standard center-to-center: {disp(center_to_center):.2f} {display_unit}</text>',
                 f'<line x1="{x_mm(c1 + radius_mm)}" y1="{y_dim_gap}" x2="{x_mm(c2 - radius_mm)}" y2="{y_dim_gap}" stroke="#0f766e" stroke-width="1.5"/>',
                 f'<line x1="{x_mm(c1 + radius_mm)}" y1="{y_dim_gap - 5}" x2="{x_mm(c1 + radius_mm)}" y2="{y_dim_gap + 5}" stroke="#0f766e" stroke-width="1"/>',
                 f'<line x1="{x_mm(c2 - radius_mm)}" y1="{y_dim_gap - 5}" x2="{x_mm(c2 - radius_mm)}" y2="{y_dim_gap + 5}" stroke="#0f766e" stroke-width="1"/>',
-                f'<text x="{(x_mm(c1) + x_mm(c2)) / 2}" y="{y_dim_gap - 6}" text-anchor="middle" font-size="12" fill="#0f766e">Standard edge gap: {standard_edge_gap:.2f} mm</text>',
+                f'<text x="{(x_mm(c1) + x_mm(c2)) / 2}" y="{y_dim_gap - 6}" text-anchor="middle" font-size="12" fill="#0f766e">Standard edge gap: {disp(standard_edge_gap):.2f} {display_unit}</text>',
             ]
         )
 
@@ -559,7 +573,7 @@ def build_svg(
                 f'<line x1="{x_mm(waist_left)}" y1="{y_c2c_waist}" x2="{x_mm(waist_right)}" y2="{y_c2c_waist}" stroke="#b45309" stroke-width="1.6"/>',
                 f'<line x1="{x_mm(waist_left)}" y1="{y_c2c_waist - 5}" x2="{x_mm(waist_left)}" y2="{y_c2c_waist + 5}" stroke="#b45309" stroke-width="1"/>',
                 f'<line x1="{x_mm(waist_right)}" y1="{y_c2c_waist - 5}" x2="{x_mm(waist_right)}" y2="{y_c2c_waist + 5}" stroke="#b45309" stroke-width="1"/>',
-                f'<text x="{(x_mm(waist_left) + x_mm(waist_right)) / 2}" y="{y_c2c_waist - 6}" text-anchor="middle" font-size="12" fill="#92400e">Waist center-to-center: {waist_center_to_center:.2f} mm</text>',
+                f'<text x="{(x_mm(waist_left) + x_mm(waist_right)) / 2}" y="{y_c2c_waist - 6}" text-anchor="middle" font-size="12" fill="#92400e">Waist center-to-center: {disp(waist_center_to_center):.2f} {display_unit}</text>',
             ]
         )
 
@@ -569,7 +583,7 @@ def build_svg(
                 f'<line x1="{x_mm(waist_left + radius_mm)}" y1="{y_gap}" x2="{x_mm(waist_right - radius_mm)}" y2="{y_gap}" stroke="#ea580c" stroke-width="1.6"/>',
                 f'<line x1="{x_mm(waist_left + radius_mm)}" y1="{y_gap - 5}" x2="{x_mm(waist_left + radius_mm)}" y2="{y_gap + 5}" stroke="#ea580c" stroke-width="1"/>',
                 f'<line x1="{x_mm(waist_right - radius_mm)}" y1="{y_gap - 5}" x2="{x_mm(waist_right - radius_mm)}" y2="{y_gap + 5}" stroke="#ea580c" stroke-width="1"/>',
-                f'<text x="{(x_mm(waist_left) + x_mm(waist_right)) / 2}" y="{y_gap - 6}" text-anchor="middle" font-size="12" fill="#9a3412">Waist edge gap: {waist_right - waist_left - (2 * radius_mm):.2f} mm</text>',
+                f'<text x="{(x_mm(waist_left) + x_mm(waist_right)) / 2}" y="{y_gap - 6}" text-anchor="middle" font-size="12" fill="#9a3412">Waist edge gap: {disp(waist_right - waist_left - (2 * radius_mm)):.2f} {display_unit}</text>',
             ]
         )
 
@@ -585,27 +599,57 @@ def main() -> None:
     left, right = st.columns([1, 2], gap="large")
 
     with left:
-        length_mm = st.number_input("Strip length (mm)", min_value=1.0, value=350.0, step=1.0)
-        margin_mm = st.number_input("End margin each side (mm)", min_value=0.0, value=20.0, step=0.5)
-        diameter_mm = st.number_input("Grommet external diameter (mm)", min_value=1, value=9, step=1)
+        unit_mode = st.toggle("Use imperial units (inches)", value=False)
+        unit_label = "in" if unit_mode else "mm"
+        input_to_mm = MM_PER_INCH if unit_mode else 1.0
+        mm_to_output = 1 / MM_PER_INCH if unit_mode else 1.0
+
+        length_input = st.number_input(
+            f"Strip length ({unit_label})",
+            min_value=0.1 if unit_mode else 1.0,
+            value=round(350.0 / MM_PER_INCH, 2) if unit_mode else 350.0,
+            step=0.01 if unit_mode else 1.0,
+            format="%.2f" if unit_mode else "%.1f",
+        )
+        margin_input = st.number_input(
+            f"End margin each side ({unit_label})",
+            min_value=0.0,
+            value=round(20.0 / MM_PER_INCH, 2) if unit_mode else 20.0,
+            step=0.01 if unit_mode else 0.5,
+            format="%.2f" if unit_mode else "%.1f",
+        )
+        diameter_input = st.number_input(
+            f"Grommet external diameter ({unit_label})",
+            min_value=0.01 if unit_mode else 1.0,
+            value=round(9.0 / MM_PER_INCH, 2) if unit_mode else 9.0,
+            step=0.01 if unit_mode else 1.0,
+            format="%.2f" if unit_mode else "%.1f",
+        )
+
+        length_mm = length_input * input_to_mm
+        margin_mm = margin_input * input_to_mm
+        diameter_mm = diameter_input * input_to_mm
         radius_mm = diameter_mm / 2
         count = st.number_input("Number of grommets", min_value=1, value=6, step=1)
+        waist_default = length_input / 2
         waist_position_mm = st.number_input(
-            "Waist position from strip start (mm)",
+            f"Waist position from strip start ({unit_label})",
             min_value=0.0,
-            max_value=float(length_mm),
-            value=float(length_mm / 2),
-            step=0.5,
-        )
+            max_value=float(length_input),
+            value=float(waist_default),
+            step=0.01 if unit_mode else 0.5,
+            format="%.2f" if unit_mode else "%.1f",
+        ) * input_to_mm
         use_closer_waist_pair = st.checkbox("Use closer waist grommet pair", value=False)
         waist_edge_gap_mm = st.number_input(
-            "Waist pair edge gap (mm)",
+            f"Waist pair edge gap ({unit_label})",
             min_value=0.0,
-            value=3.0,
-            step=0.5,
+            value=round(3.0 / MM_PER_INCH, 2) if unit_mode else 3.0,
+            step=0.01 if unit_mode else 0.5,
+            format="%.2f" if unit_mode else "%.1f",
             disabled=not use_closer_waist_pair,
             help="Distance between the two waist grommets measured edge-to-edge, centered at the waist.",
-        )
+        ) * input_to_mm
 
     layout = calculate_layout(
         length_mm=length_mm,
@@ -626,18 +670,20 @@ def main() -> None:
                 radius_mm=radius_mm,
                 layout=layout,
                 use_closer_waist_pair=use_closer_waist_pair,
+                display_unit=unit_label,
+                display_factor=mm_to_output,
             ),
             height=400,
         )
 
     metric_cols = st.columns(4)
     metric_cols[0].metric("Grommets", f"{count}")
-    metric_cols[1].metric("First center", f"{layout.start_center_mm:.2f} mm")
-    metric_cols[2].metric("Last center", f"{layout.end_center_mm:.2f} mm")
-    metric_cols[3].metric("Waist position", f"{waist_position_mm:.2f} mm")
+    metric_cols[1].metric("First center", f"{layout.start_center_mm * mm_to_output:.2f} {unit_label}")
+    metric_cols[2].metric("Last center", f"{layout.end_center_mm * mm_to_output:.2f} {unit_label}")
+    metric_cols[3].metric("Waist position", f"{waist_position_mm * mm_to_output:.2f} {unit_label}")
     # derive left / waist / right spacing + gap values
     def _fmt(v: float | None) -> str:
-        return f"{v:.2f} mm" if v is not None else "—"
+        return f"{(v * mm_to_output):.2f} {unit_label}" if v is not None else "—"
 
     if layout.center_spacings_mm and use_closer_waist_pair and layout.waist_pair_indices is not None:
         wi_l, wi_r = layout.waist_pair_indices
@@ -708,10 +754,10 @@ def main() -> None:
         df = pd.DataFrame(
             {
                 "Grommet #": list(range(1, len(layout.centers_mm) + 1)),
-                "Center from left edge (mm)": [round(v, 3) for v in layout.centers_mm],
+                f"Center from strip start ({unit_label})": [round(v * mm_to_output, 3) for v in layout.centers_mm],
                 "Type": labels,
-                "Center spacing to next (mm)": spacing_to_next,
-                "Edge gap to next (mm)": edge_gap_to_next,
+                f"Center spacing to next ({unit_label})": [round(v * mm_to_output, 3) if v is not None else None for v in spacing_to_next],
+                f"Edge gap to next ({unit_label})": [round(v * mm_to_output, 3) if v is not None else None for v in edge_gap_to_next],
             }
         )
         st.dataframe(df, use_container_width=True, hide_index=True)
