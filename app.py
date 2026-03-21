@@ -614,30 +614,51 @@ def main() -> None:
             height=400,
         )
 
-    metric_cols = st.columns(5)
+    metric_cols = st.columns(4)
     metric_cols[0].metric("Grommets", f"{count}")
     metric_cols[1].metric("First center", f"{layout.start_center_mm:.2f} mm")
     metric_cols[2].metric("Last center", f"{layout.end_center_mm:.2f} mm")
     metric_cols[3].metric("Waist position", f"{waist_position_mm:.2f} mm")
-    metric_cols[4].metric(
-        "Center spacing",
-        "-"
-        if not layout.center_spacings_mm
-        else (
-            f"{layout.uniform_center_spacing_mm:.2f} mm"
-            if layout.uniform_center_spacing_mm is not None
-            else f"{min(layout.center_spacings_mm):.2f}..{max(layout.center_spacings_mm):.2f} mm"
-        ),
-    )
+    # derive left / waist / right spacing + gap values
+    def _fmt(v: float | None) -> str:
+        return f"{v:.2f} mm" if v is not None else "—"
 
-    if layout.edge_gaps_mm:
-        if len(layout.edge_gaps_mm) == 1:
-            st.metric("Edge-to-edge gap", f"{layout.edge_gaps_mm[0]:.2f} mm")
-        else:
-            st.metric(
-                "Edge-to-edge gaps",
-                f"{min(layout.edge_gaps_mm):.2f}..{max(layout.edge_gaps_mm):.2f} mm",
-            )
+    if layout.center_spacings_mm and use_closer_waist_pair and layout.waist_pair_indices is not None:
+        wi_l, wi_r = layout.waist_pair_indices
+        left_spacings  = layout.center_spacings_mm[:wi_l]
+        waist_spacing  = layout.center_spacings_mm[wi_l] if wi_l < len(layout.center_spacings_mm) else None
+        right_spacings = layout.center_spacings_mm[wi_r:]
+        left_gaps  = layout.edge_gaps_mm[:wi_l]
+        waist_gap  = layout.edge_gaps_mm[wi_l] if wi_l < len(layout.edge_gaps_mm) else None
+        right_gaps = layout.edge_gaps_mm[wi_r:]
+        sp_left  = _fmt(left_spacings[0]  if left_spacings  else None)
+        sp_waist = _fmt(waist_spacing)
+        sp_right = _fmt(right_spacings[-1] if right_spacings else None)
+        eg_left  = _fmt(left_gaps[0]  if left_gaps  else None)
+        eg_waist = _fmt(waist_gap)
+        eg_right = _fmt(right_gaps[-1] if right_gaps else None)
+    elif layout.center_spacings_mm:
+        uniform = _fmt(layout.uniform_center_spacing_mm) if layout.uniform_center_spacing_mm is not None else f"{min(layout.center_spacings_mm):.2f}..{max(layout.center_spacings_mm):.2f} mm"
+        sp_left = sp_waist = sp_right = uniform
+        eg_val = _fmt(layout.edge_gaps_mm[0]) if len(layout.edge_gaps_mm) == 1 else (f"{min(layout.edge_gaps_mm):.2f}..{max(layout.edge_gaps_mm):.2f} mm" if layout.edge_gaps_mm else "—")
+        eg_left = eg_waist = eg_right = eg_val
+    else:
+        sp_left = sp_waist = sp_right = "—"
+        eg_left = eg_waist = eg_right = "—"
+
+    sp_col, eg_col = st.columns(2)
+    with sp_col:
+        st.markdown("**Center spacing**")
+        sp_inner = st.columns(3)
+        sp_inner[0].metric("Left", sp_left)
+        sp_inner[1].metric("Waist", sp_waist)
+        sp_inner[2].metric("Right", sp_right)
+    with eg_col:
+        st.markdown("**Edge-to-edge gap**")
+        eg_inner = st.columns(3)
+        eg_inner[0].metric("Left", eg_left)
+        eg_inner[1].metric("Waist", eg_waist)
+        eg_inner[2].metric("Right", eg_right)
 
     if layout.warnings:
         for warning in layout.warnings:
