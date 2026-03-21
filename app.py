@@ -106,6 +106,10 @@ def build_printable_svg_letter(
         waist_left = layout.centers_mm[layout.waist_pair_indices[0]]
         waist_right = layout.centers_mm[layout.waist_pair_indices[1]]
 
+    svg.append(
+        f'<line x1="{x_pos(0)}" y1="{center_y}" x2="{x_pos(length_mm)}" y2="{center_y}" stroke="#94a3b8" stroke-width="0.3" stroke-dasharray="2 1"/>'
+    )
+
     for index, center in enumerate(layout.centers_mm):
         is_waist = use_closer_waist_pair and layout.waist_pair_indices is not None and index in layout.waist_pair_indices
         stroke = "#c2410c" if is_waist else "#1f2937"
@@ -244,6 +248,11 @@ def build_printable_pdf_letter(
             pdf.setDash(2, 2)
             pdf.line(mm_to_pt(x), mm_to_pt(page_h - (strip_y - 4)), mm_to_pt(x), mm_to_pt(page_h - (strip_y + strip_h + 4)))
             pdf.setDash()
+
+        pdf.setLineWidth(0.3)
+        pdf.setDash(2, 1)
+        pdf.line(mm_to_pt(page_margin), mm_to_pt(page_h - center_y), mm_to_pt(page_margin + segment_width), mm_to_pt(page_h - center_y))
+        pdf.setDash()
 
         for center in layout.centers_mm:
             if (center + radius_mm) < segment_start or (center - radius_mm) > segment_end:
