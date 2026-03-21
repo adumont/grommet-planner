@@ -666,7 +666,7 @@ def main() -> None:
         waist_edge_gap_mm = st.number_input(
             f"Waist pair edge gap ({unit_label})",
             min_value=0.0,
-            value=round(3.0 / MM_PER_INCH, 2) if unit_mode else 3.0,
+            value=round(17.0 / MM_PER_INCH, 2) if unit_mode else 17.0,
             step=0.01 if unit_mode else 0.5,
             format="%.2f" if unit_mode else "%.1f",
             disabled=not use_closer_waist_pair,
