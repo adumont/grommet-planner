@@ -75,10 +75,12 @@ def build_printable_svg_letter(
     radius_mm: float,
     layout: GrommetLayout,
     use_closer_waist_pair: bool,
+    count: int,
+    waist_edge_gap_mm: float,
 ) -> tuple[str, float, str]:
     page_margin = 10.0
     page_w = length_mm + (2 * page_margin)
-    page_h = 120.0
+    page_h = 160.0
     scale = 1.0
     start_x = page_margin
     orientation = "Full-width SVG"
@@ -177,6 +179,16 @@ def build_printable_svg_letter(
             f'<text x="{page_margin}" y="{base_y + (line_index // chunk_size) * 6}" font-size="4.1" fill="#18181b">Centers (mm) {", ".join(chunk)}</text>'
         )
 
+    param_y = 130.0
+    waist_info = f"  |  Waist at: {layout.waist_position_mm:.2f} mm  |  Waist edge gap: {waist_edge_gap_mm:.2f} mm" if use_closer_waist_pair else ""
+    param_line1 = f"Strip length: {length_mm:.2f} mm   |   Margin: {margin_mm:.2f} mm   |   Diameter: {radius_mm * 2:.2f} mm   |   Grommets: {count}"
+    param_line2 = f"Waist pair: {'Yes' + waist_info if use_closer_waist_pair else 'No'}"
+    svg.extend([
+        f'<rect x="{page_margin}" y="{param_y - 5}" width="{page_w - 2 * page_margin}" height="18" fill="#f8fafc" stroke="#e2e8f0" stroke-width="0.4" rx="1"/>',
+        f'<text x="{page_margin + 3}" y="{param_y + 3}" font-size="4.8" fill="#334155">{param_line1}</text>',
+        f'<text x="{page_margin + 3}" y="{param_y + 10}" font-size="4.8" fill="#334155">{param_line2}</text>',
+    ])
+
     svg.append("</svg>")
     return "\n".join(svg), scale, orientation
 
@@ -187,6 +199,8 @@ def build_printable_pdf_letter(
     radius_mm: float,
     layout: GrommetLayout,
     use_closer_waist_pair: bool,
+    count: int,
+    waist_edge_gap_mm: float,
 ) -> tuple[bytes, int]:
     if not REPORTLAB_AVAILABLE or RL_pagesizes is None or RL_units is None or RL_canvas_module is None:
         raise RuntimeError("PDF export requested but reportlab is not available.")
@@ -271,12 +285,14 @@ def build_printable_pdf_letter(
             pdf.drawString(mm_to_pt(page_margin + segment_width - 32), mm_to_pt(page_h - (strip_y + strip_h + 12)), "Join next page here")
 
         pdf.setFont("Helvetica", 6)
-        pdf.drawString(mm_to_pt(10), mm_to_pt(page_h - (strip_y + strip_h + 14)), f"Total length: {length_mm:.2f} mm   Margin: {margin_mm:.2f} mm")
+        pdf.drawString(mm_to_pt(10), mm_to_pt(page_h - (strip_y + strip_h + 14)), f"Total length: {length_mm:.2f} mm   Margin: {margin_mm:.2f} mm   Diameter: {radius_mm * 2:.2f} mm   Grommets: {count}")
+        waist_info = f"Waist at: {layout.waist_position_mm:.2f} mm   Waist edge gap: {waist_edge_gap_mm:.2f} mm" if use_closer_waist_pair else "Waist pair: No"
+        pdf.drawString(mm_to_pt(10), mm_to_pt(page_h - (strip_y + strip_h + 19)), waist_info)
         centers_on_page = [f"{idx + 1}:{v:.2f}" for idx, v in enumerate(layout.centers_mm) if segment_start <= v <= segment_end]
         if centers_on_page:
             pdf.drawString(
                 mm_to_pt(10),
-                mm_to_pt(page_h - (strip_y + strip_h + 19)),
+                mm_to_pt(page_h - (strip_y + strip_h + 24)),
                 f"Centers on this page (mm): {', '.join(centers_on_page[:12])}",
             )
 
@@ -709,6 +725,8 @@ def main() -> None:
         radius_mm=radius_mm,
         layout=layout,
         use_closer_waist_pair=use_closer_waist_pair,
+        count=count,
+        waist_edge_gap_mm=waist_edge_gap_mm,
     )
     st.download_button(
         "Download SVG (100% scale)",
@@ -725,6 +743,8 @@ def main() -> None:
             radius_mm=radius_mm,
             layout=layout,
             use_closer_waist_pair=use_closer_waist_pair,
+            count=count,
+            waist_edge_gap_mm=waist_edge_gap_mm,
         )
         st.download_button(
             "Download PDF Letter (100% scale, multi-page)",
