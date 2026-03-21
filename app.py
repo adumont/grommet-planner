@@ -1,8 +1,23 @@
 from dataclasses import dataclass
+import io
+from typing import Any
 
 import pandas as pd
 import streamlit as st
 import streamlit.components.v1 as components
+
+RL_pagesizes: Any = None
+RL_units: Any = None
+RL_canvas_module: Any = None
+
+try:
+    import reportlab.lib.pagesizes as RL_pagesizes
+    import reportlab.lib.units as RL_units
+    import reportlab.pdfgen.canvas as RL_canvas_module
+
+    REPORTLAB_AVAILABLE = True
+except Exception:
+    REPORTLAB_AVAILABLE = False
 
 
 @dataclass
@@ -28,6 +43,237 @@ def _build_spacing_lists(centers_mm: list[float], radius_mm: float) -> tuple[lis
     first_spacing = center_spacings[0]
     is_uniform = all(abs(spacing - first_spacing) < 1e-9 for spacing in center_spacings)
     return center_spacings, edge_gaps, (first_spacing if is_uniform else None)
+
+
+def _find_standard_pair_index(layout: GrommetLayout, use_closer_waist_pair: bool) -> int | None:
+    if len(layout.centers_mm) < 2:
+        return None
+
+    for pair_index in range(len(layout.centers_mm) - 1):
+        is_waist_pair = (
+            use_closer_waist_pair
+            and layout.waist_pair_indices is not None
+            and pair_index == layout.waist_pair_indices[0]
+        )
+        if not is_waist_pair:
+            return pair_index
+    return None
+
+
+def _a4_landscape_layout(length_mm: float) -> tuple[float, float, float, float, int]:
+    page_w = 297.0
+    page_h = 210.0
+    margin_mm = 10.0
+    usable_w = page_w - (2 * margin_mm)
+    page_count = max(1, int(-(-length_mm // usable_w)))
+    return page_w, page_h, margin_mm, usable_w, page_count
+
+
+def build_printable_svg_a4(
+    length_mm: float,
+    margin_mm: float,
+    radius_mm: float,
+    layout: GrommetLayout,
+    use_closer_waist_pair: bool,
+) -> tuple[str, float, str]:
+    page_margin = 10.0
+    page_w = length_mm + (2 * page_margin)
+    page_h = 120.0
+    scale = 1.0
+    start_x = page_margin
+    orientation = "Full-width SVG"
+    strip_y = 28.0
+    strip_h = max(18.0, (2 * radius_mm * scale) + 8.0)
+    center_y = strip_y + (strip_h / 2)
+
+    def x_pos(value_mm: float) -> float:
+        return start_x + value_mm * scale
+
+    svg: list[str] = [
+        f'<svg xmlns="http://www.w3.org/2000/svg" width="{page_w}mm" height="{page_h}mm" viewBox="0 0 {page_w} {page_h}">',
+        f'<rect x="0.5" y="0.5" width="{page_w - 1}" height="{page_h - 1}" fill="white" stroke="#d4d4d8" stroke-width="0.5"/>',
+        f'<text x="{page_margin}" y="10" font-size="6" fill="#18181b">Grommet template (full scale SVG)</text>',
+        f'<text x="{page_margin}" y="16" font-size="5" fill="#18181b">Print setting: Actual size / 100%. Drawing scale: {scale * 100:.2f}%</text>',
+        f'<rect x="{x_pos(0)}" y="{strip_y}" width="{length_mm * scale}" height="{strip_h}" fill="#ffffff" stroke="#111827" stroke-width="0.6"/>',
+        f'<line x1="{x_pos(0)}" y1="{strip_y + strip_h + 6}" x2="{x_pos(length_mm)}" y2="{strip_y + strip_h + 6}" stroke="#111827" stroke-width="0.4"/>',
+        f'<text x="{(x_pos(0) + x_pos(length_mm)) / 2}" y="{strip_y + strip_h + 11}" text-anchor="middle" font-size="4.5" fill="#111827">Total length: {length_mm:.2f} mm</text>',
+        f'<line x1="{x_pos(0)}" y1="{strip_y - 5}" x2="{x_pos(margin_mm)}" y2="{strip_y - 5}" stroke="#0369a1" stroke-width="0.5"/>',
+        f'<line x1="{x_pos(length_mm - margin_mm)}" y1="{strip_y - 5}" x2="{x_pos(length_mm)}" y2="{strip_y - 5}" stroke="#0369a1" stroke-width="0.5"/>',
+    ]
+
+    waist_left = waist_right = None
+    if layout.waist_pair_indices is not None and layout.waist_pair_indices[1] < len(layout.centers_mm):
+        waist_left = layout.centers_mm[layout.waist_pair_indices[0]]
+        waist_right = layout.centers_mm[layout.waist_pair_indices[1]]
+
+    for index, center in enumerate(layout.centers_mm):
+        is_waist = use_closer_waist_pair and layout.waist_pair_indices is not None and index in layout.waist_pair_indices
+        stroke = "#c2410c" if is_waist else "#1f2937"
+        fill = "#fff7ed" if is_waist else "#ffffff"
+        svg.extend(
+            [
+                f'<circle cx="{x_pos(center)}" cy="{center_y}" r="{max(0.8, radius_mm * scale)}" fill="{fill}" stroke="{stroke}" stroke-width="0.5"/>',
+                f'<line x1="{x_pos(center)}" y1="{strip_y - 1}" x2="{x_pos(center)}" y2="{strip_y + strip_h + 1}" stroke="{stroke}" stroke-width="0.35" stroke-dasharray="1.2 1.2"/>',
+            ]
+        )
+
+    waist_x = layout.waist_position_mm
+    if 0 <= waist_x <= length_mm:
+        svg.extend(
+            [
+                f'<line x1="{x_pos(waist_x)}" y1="{strip_y - 7}" x2="{x_pos(waist_x)}" y2="{strip_y + strip_h + 7}" stroke="#b91c1c" stroke-width="0.45" stroke-dasharray="1.5 1.5"/>',
+                f'<text x="{x_pos(waist_x)}" y="{strip_y + strip_h + 18}" text-anchor="middle" font-size="4.3" fill="#b91c1c">Waist: {waist_x:.2f} mm</text>',
+            ]
+        )
+
+    standard_pair_index = _find_standard_pair_index(layout, use_closer_waist_pair)
+    if standard_pair_index is not None:
+        c1 = layout.centers_mm[standard_pair_index]
+        c2 = layout.centers_mm[standard_pair_index + 1]
+        c2c = c2 - c1
+        edge_gap = c2c - (2 * radius_mm)
+        y_c2c = strip_y + strip_h + 24
+        y_gap = strip_y + strip_h + 34
+        svg.extend(
+            [
+                f'<line x1="{x_pos(c1)}" y1="{y_c2c}" x2="{x_pos(c2)}" y2="{y_c2c}" stroke="#166534" stroke-width="0.55"/>',
+                f'<line x1="{x_pos(c1)}" y1="{y_c2c - 2}" x2="{x_pos(c1)}" y2="{y_c2c + 2}" stroke="#166534" stroke-width="0.4"/>',
+                f'<line x1="{x_pos(c2)}" y1="{y_c2c - 2}" x2="{x_pos(c2)}" y2="{y_c2c + 2}" stroke="#166534" stroke-width="0.4"/>',
+                f'<text x="{(x_pos(c1) + x_pos(c2)) / 2}" y="{y_c2c - 3}" text-anchor="middle" font-size="4.2" fill="#166534">Standard center-to-center: {c2c:.2f} mm</text>',
+                f'<line x1="{x_pos(c1 + radius_mm)}" y1="{y_gap}" x2="{x_pos(c2 - radius_mm)}" y2="{y_gap}" stroke="#0f766e" stroke-width="0.55"/>',
+                f'<line x1="{x_pos(c1 + radius_mm)}" y1="{y_gap - 2}" x2="{x_pos(c1 + radius_mm)}" y2="{y_gap + 2}" stroke="#0f766e" stroke-width="0.4"/>',
+                f'<line x1="{x_pos(c2 - radius_mm)}" y1="{y_gap - 2}" x2="{x_pos(c2 - radius_mm)}" y2="{y_gap + 2}" stroke="#0f766e" stroke-width="0.4"/>',
+                f'<text x="{(x_pos(c1) + x_pos(c2)) / 2}" y="{y_gap - 3}" text-anchor="middle" font-size="4.2" fill="#0f766e">Standard edge gap: {edge_gap:.2f} mm</text>',
+            ]
+        )
+
+    if use_closer_waist_pair and waist_left is not None and waist_right is not None:
+        waist_c2c = waist_right - waist_left
+        y_waist_top = strip_y + 5
+        y_waist_gap = strip_y + strip_h + 44
+        svg.extend(
+            [
+                f'<line x1="{x_pos(waist_left)}" y1="{y_waist_top}" x2="{x_pos(waist_right)}" y2="{y_waist_top}" stroke="#b45309" stroke-width="0.55"/>',
+                f'<line x1="{x_pos(waist_left)}" y1="{y_waist_top - 2}" x2="{x_pos(waist_left)}" y2="{y_waist_top + 2}" stroke="#b45309" stroke-width="0.4"/>',
+                f'<line x1="{x_pos(waist_right)}" y1="{y_waist_top - 2}" x2="{x_pos(waist_right)}" y2="{y_waist_top + 2}" stroke="#b45309" stroke-width="0.4"/>',
+                f'<text x="{(x_pos(waist_left) + x_pos(waist_right)) / 2}" y="{y_waist_top - 3}" text-anchor="middle" font-size="4.2" fill="#92400e">Waist center-to-center: {waist_c2c:.2f} mm</text>',
+                f'<line x1="{x_pos(waist_left + radius_mm)}" y1="{y_waist_gap}" x2="{x_pos(waist_right - radius_mm)}" y2="{y_waist_gap}" stroke="#ea580c" stroke-width="0.55"/>',
+                f'<line x1="{x_pos(waist_left + radius_mm)}" y1="{y_waist_gap - 2}" x2="{x_pos(waist_left + radius_mm)}" y2="{y_waist_gap + 2}" stroke="#ea580c" stroke-width="0.4"/>',
+                f'<line x1="{x_pos(waist_right - radius_mm)}" y1="{y_waist_gap - 2}" x2="{x_pos(waist_right - radius_mm)}" y2="{y_waist_gap + 2}" stroke="#ea580c" stroke-width="0.4"/>',
+                f'<text x="{(x_pos(waist_left) + x_pos(waist_right)) / 2}" y="{y_waist_gap - 3}" text-anchor="middle" font-size="4.2" fill="#9a3412">Waist edge gap: {waist_c2c - (2 * radius_mm):.2f} mm</text>',
+            ]
+        )
+
+    centers_text = [f"{idx + 1}:{value:.2f}" for idx, value in enumerate(layout.centers_mm)]
+    chunk_size = 10
+    base_y = strip_y + strip_h + 58
+    for line_index in range(0, len(centers_text), chunk_size):
+        chunk = centers_text[line_index : line_index + chunk_size]
+        svg.append(
+            f'<text x="{page_margin}" y="{base_y + (line_index // chunk_size) * 6}" font-size="4.1" fill="#18181b">Centers (mm) {", ".join(chunk)}</text>'
+        )
+
+    svg.append("</svg>")
+    return "\n".join(svg), scale, orientation
+
+
+def build_printable_pdf_a4(
+    length_mm: float,
+    margin_mm: float,
+    radius_mm: float,
+    layout: GrommetLayout,
+    use_closer_waist_pair: bool,
+) -> tuple[bytes, int]:
+    if not REPORTLAB_AVAILABLE or RL_pagesizes is None or RL_units is None or RL_canvas_module is None:
+        raise RuntimeError("PDF export requested but reportlab is not available.")
+
+    page_w, page_h, page_margin, usable_w, page_count = _a4_landscape_layout(length_mm)
+    scale = 1.0
+    page_size = RL_pagesizes.landscape(RL_pagesizes.A4)
+    buffer = io.BytesIO()
+    pdf = RL_canvas_module.Canvas(buffer, pagesize=page_size)
+
+    strip_y = 40.0
+    strip_h = max(18.0, (2 * radius_mm * scale) + 8.0)
+    center_y = strip_y + (strip_h / 2)
+
+    def mm_to_pt(value_mm: float) -> float:
+        return value_mm * RL_units.mm
+
+    def x_local(global_mm: float, segment_start_mm: float) -> float:
+        return page_margin + (global_mm - segment_start_mm)
+
+    for page_index in range(page_count):
+        segment_start = page_index * usable_w
+        segment_end = min(length_mm, segment_start + usable_w)
+        segment_width = segment_end - segment_start
+
+        pdf.setFont("Helvetica", 8)
+        pdf.drawString(mm_to_pt(10), mm_to_pt(page_h - 12), "Grommet template A4 landscape - print at 100% / actual size")
+        pdf.drawString(
+            mm_to_pt(10),
+            mm_to_pt(page_h - 17),
+            f"Page {page_index + 1}/{page_count} | Segment {segment_start:.2f}..{segment_end:.2f} mm | Scale 100%",
+        )
+
+        pdf.setLineWidth(0.8)
+        pdf.rect(mm_to_pt(page_margin), mm_to_pt(page_h - (strip_y + strip_h)), mm_to_pt(segment_width), mm_to_pt(strip_h))
+
+        left_boundary_label = f"X={segment_start:.2f}"
+        right_boundary_label = f"X={segment_end:.2f}"
+        pdf.setFont("Helvetica", 6)
+        pdf.drawString(mm_to_pt(page_margin), mm_to_pt(page_h - (strip_y + strip_h + 4)), left_boundary_label)
+        pdf.drawRightString(mm_to_pt(page_margin + segment_width), mm_to_pt(page_h - (strip_y + strip_h + 4)), right_boundary_label)
+
+        local_margin_left = margin_mm
+        if segment_start <= local_margin_left <= segment_end:
+            x = x_local(local_margin_left, segment_start)
+            pdf.setDash(1.5, 1.5)
+            pdf.line(mm_to_pt(x), mm_to_pt(page_h - (strip_y - 3)), mm_to_pt(x), mm_to_pt(page_h - (strip_y + strip_h + 3)))
+            pdf.setDash()
+
+        local_margin_right = length_mm - margin_mm
+        if segment_start <= local_margin_right <= segment_end:
+            x = x_local(local_margin_right, segment_start)
+            pdf.setDash(1.5, 1.5)
+            pdf.line(mm_to_pt(x), mm_to_pt(page_h - (strip_y - 3)), mm_to_pt(x), mm_to_pt(page_h - (strip_y + strip_h + 3)))
+            pdf.setDash()
+
+        if segment_start <= layout.waist_position_mm <= segment_end:
+            x = x_local(layout.waist_position_mm, segment_start)
+            pdf.setDash(2, 2)
+            pdf.line(mm_to_pt(x), mm_to_pt(page_h - (strip_y - 4)), mm_to_pt(x), mm_to_pt(page_h - (strip_y + strip_h + 4)))
+            pdf.setDash()
+
+        for center in layout.centers_mm:
+            if (center + radius_mm) < segment_start or (center - radius_mm) > segment_end:
+                continue
+            x_center = x_local(center, segment_start)
+            pdf.circle(mm_to_pt(x_center), mm_to_pt(page_h - center_y), mm_to_pt(max(0.8, radius_mm)), stroke=1, fill=0)
+            pdf.setDash(1.5, 1.5)
+            pdf.line(mm_to_pt(x_center), mm_to_pt(page_h - (strip_y - 1)), mm_to_pt(x_center), mm_to_pt(page_h - (strip_y + strip_h + 1)))
+            pdf.setDash()
+
+        if page_index < (page_count - 1):
+            pdf.setDash(2, 2)
+            pdf.line(mm_to_pt(page_margin + segment_width), mm_to_pt(page_h - (strip_y - 10)), mm_to_pt(page_margin + segment_width), mm_to_pt(page_h - (strip_y + strip_h + 10)))
+            pdf.setDash()
+            pdf.drawString(mm_to_pt(page_margin + segment_width - 32), mm_to_pt(page_h - (strip_y + strip_h + 12)), "Join next page here")
+
+        pdf.setFont("Helvetica", 6)
+        pdf.drawString(mm_to_pt(10), mm_to_pt(page_h - (strip_y + strip_h + 14)), f"Total length: {length_mm:.2f} mm   Margin: {margin_mm:.2f} mm")
+        centers_on_page = [f"{idx + 1}:{v:.2f}" for idx, v in enumerate(layout.centers_mm) if segment_start <= v <= segment_end]
+        if centers_on_page:
+            pdf.drawString(
+                mm_to_pt(10),
+                mm_to_pt(page_h - (strip_y + strip_h + 19)),
+                f"Centers on this page (mm): {', '.join(centers_on_page[:12])}",
+            )
+
+        pdf.showPage()
+
+    pdf.save()
+    return buffer.getvalue(), page_count
 
 
 def calculate_layout(
@@ -252,17 +498,7 @@ def build_svg(
             ]
         )
 
-    standard_pair_index = None
-    if len(layout.centers_mm) >= 2:
-        for pair_index in range(len(layout.centers_mm) - 1):
-            is_waist_pair = (
-                use_closer_waist_pair
-                and layout.waist_pair_indices is not None
-                and pair_index == layout.waist_pair_indices[0]
-            )
-            if not is_waist_pair:
-                standard_pair_index = pair_index
-                break
+    standard_pair_index = _find_standard_pair_index(layout, use_closer_waist_pair)
 
     if standard_pair_index is not None:
         c1 = layout.centers_mm[standard_pair_index]
@@ -426,6 +662,43 @@ def main() -> None:
         st.dataframe(df, use_container_width=True, hide_index=True)
     else:
         st.info("No center positions to display for this configuration.")
+
+    st.subheader("Printable export (A4)")
+    printable_svg, printable_scale, printable_orientation = build_printable_svg_a4(
+        length_mm=length_mm,
+        margin_mm=margin_mm,
+        radius_mm=radius_mm,
+        layout=layout,
+        use_closer_waist_pair=use_closer_waist_pair,
+    )
+    st.download_button(
+        "Download SVG (100% scale)",
+        data=printable_svg,
+        file_name="grommet_template_full_scale.svg",
+        mime="image/svg+xml",
+        use_container_width=True,
+    )
+
+    if REPORTLAB_AVAILABLE:
+        printable_pdf, pdf_page_count = build_printable_pdf_a4(
+            length_mm=length_mm,
+            margin_mm=margin_mm,
+            radius_mm=radius_mm,
+            layout=layout,
+            use_closer_waist_pair=use_closer_waist_pair,
+        )
+        st.download_button(
+            "Download PDF A4 (100% scale, multi-page)",
+            data=printable_pdf,
+            file_name="grommet_template_a4.pdf",
+            mime="application/pdf",
+            use_container_width=True,
+        )
+        st.caption(f"PDF export uses A4 landscape at 100% scale and spans {pdf_page_count} page(s).")
+    else:
+        st.caption("PDF export is unavailable because reportlab is not installed. SVG export is ready to print.")
+
+    st.caption(f"SVG export mode: {printable_orientation}. Drawing scale: {printable_scale * 100:.2f}%.")
 
 
 if __name__ == "__main__":
