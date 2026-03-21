@@ -106,10 +106,6 @@ def build_printable_svg_letter(
         waist_left = layout.centers_mm[layout.waist_pair_indices[0]]
         waist_right = layout.centers_mm[layout.waist_pair_indices[1]]
 
-    svg.append(
-        f'<line x1="{x_pos(0)}" y1="{center_y}" x2="{x_pos(length_mm)}" y2="{center_y}" stroke="#94a3b8" stroke-width="0.3" stroke-dasharray="2 1"/>'
-    )
-
     for index, center in enumerate(layout.centers_mm):
         is_waist = use_closer_waist_pair and layout.waist_pair_indices is not None and index in layout.waist_pair_indices
         stroke = "#c2410c" if is_waist else "#1f2937"
@@ -120,6 +116,10 @@ def build_printable_svg_letter(
                 f'<line x1="{x_pos(center)}" y1="{strip_y - 1}" x2="{x_pos(center)}" y2="{strip_y + strip_h + 1}" stroke="{stroke}" stroke-width="0.35" stroke-dasharray="1.2 1.2"/>',
             ]
         )
+
+    svg.append(
+        f'<line x1="{x_pos(0)}" y1="{center_y}" x2="{x_pos(length_mm)}" y2="{center_y}" stroke="#1f2937" stroke-width="0.35" stroke-dasharray="1.2 1.2"/>'
+    )
 
     waist_x = layout.waist_position_mm
     if 0 <= waist_x <= length_mm:
@@ -249,11 +249,6 @@ def build_printable_pdf_letter(
             pdf.line(mm_to_pt(x), mm_to_pt(page_h - (strip_y - 4)), mm_to_pt(x), mm_to_pt(page_h - (strip_y + strip_h + 4)))
             pdf.setDash()
 
-        pdf.setLineWidth(0.3)
-        pdf.setDash(2, 1)
-        pdf.line(mm_to_pt(page_margin), mm_to_pt(page_h - center_y), mm_to_pt(page_margin + segment_width), mm_to_pt(page_h - center_y))
-        pdf.setDash()
-
         for center in layout.centers_mm:
             if (center + radius_mm) < segment_start or (center - radius_mm) > segment_end:
                 continue
@@ -262,6 +257,12 @@ def build_printable_pdf_letter(
             pdf.setDash(1.5, 1.5)
             pdf.line(mm_to_pt(x_center), mm_to_pt(page_h - (strip_y - 1)), mm_to_pt(x_center), mm_to_pt(page_h - (strip_y + strip_h + 1)))
             pdf.setDash()
+
+        pdf.setLineWidth(0.5)
+        pdf.setDash(1.5, 1.5)
+        pdf.line(mm_to_pt(page_margin), mm_to_pt(page_h - center_y), mm_to_pt(page_margin + segment_width), mm_to_pt(page_h - center_y))
+        pdf.setDash()
+        pdf.setLineWidth(0.8)
 
         if page_index < (page_count - 1):
             pdf.setDash(2, 2)
@@ -506,6 +507,10 @@ def build_svg(
                 f'<line x1="{x_mm(center)}" y1="{rect_y}" x2="{x_mm(center)}" y2="{rect_y + strip_h_px}" stroke="{stroke}" stroke-dasharray="3 3" stroke-width="1"/>',
             ]
         )
+
+    svg.append(
+        f'<line x1="{x_mm(0)}" y1="{center_y}" x2="{x_mm(length_mm)}" y2="{center_y}" stroke="#1d4ed8" stroke-width="1" stroke-dasharray="3 3"/>'
+    )
 
     standard_pair_index = _find_standard_pair_index(layout, use_closer_waist_pair)
 
