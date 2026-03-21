@@ -119,8 +119,26 @@ def calculate_layout(
     if left_waist_center >= right_waist_center:
         warnings.append("Invalid waist pair geometry.")
 
-    left_count = (count - 2) // 2
-    right_count = count - 2 - left_count
+    remaining_count = count - 2
+    left_span = max(0.0, left_waist_center - start_center)
+    right_span = max(0.0, end_center - right_waist_center)
+    total_span = left_span + right_span
+
+    if remaining_count > 0 and total_span > 0:
+        proportional_left = remaining_count * (left_span / total_span)
+        left_count = int(round(proportional_left))
+        left_count = max(0, min(left_count, remaining_count))
+        right_count = remaining_count - left_count
+    else:
+        left_count = 0
+        right_count = remaining_count
+
+    if left_span == 0:
+        left_count = 0
+        right_count = remaining_count
+    if right_span == 0:
+        right_count = 0
+        left_count = remaining_count
 
     centers: list[float] = []
 
@@ -171,7 +189,7 @@ def build_svg(
     pad_x = 40
     pad_y = 30
     view_w = width_px + pad_x * 2
-    view_h = 260
+    view_h = 380
 
     scale_x = width_px / max(length_mm, 1)
     center_y = pad_y + strip_h_px / 2
@@ -234,21 +252,52 @@ def build_svg(
             ]
         )
 
-    if layout.uniform_center_spacing_mm is not None and len(layout.centers_mm) >= 2:
-        c1 = layout.centers_mm[0]
-        c2 = layout.centers_mm[1]
-        y_dim = rect_y + strip_h_px + 18
+    standard_pair_index = None
+    if len(layout.centers_mm) >= 2:
+        for pair_index in range(len(layout.centers_mm) - 1):
+            is_waist_pair = (
+                use_closer_waist_pair
+                and layout.waist_pair_indices is not None
+                and pair_index == layout.waist_pair_indices[0]
+            )
+            if not is_waist_pair:
+                standard_pair_index = pair_index
+                break
+
+    if standard_pair_index is not None:
+        c1 = layout.centers_mm[standard_pair_index]
+        c2 = layout.centers_mm[standard_pair_index + 1]
+        center_to_center = c2 - c1
+        standard_edge_gap = center_to_center - (2 * radius_mm)
+
+        y_dim_c2c = rect_y + strip_h_px + 28
+        y_dim_gap = rect_y + strip_h_px + 62
         svg.extend(
             [
-                f'<line x1="{x_mm(c1)}" y1="{y_dim}" x2="{x_mm(c2)}" y2="{y_dim}" stroke="#16a34a" stroke-width="1.5"/>',
-                f'<line x1="{x_mm(c1)}" y1="{y_dim - 5}" x2="{x_mm(c1)}" y2="{y_dim + 5}" stroke="#16a34a" stroke-width="1"/>',
-                f'<line x1="{x_mm(c2)}" y1="{y_dim - 5}" x2="{x_mm(c2)}" y2="{y_dim + 5}" stroke="#16a34a" stroke-width="1"/>',
-                f'<text x="{(x_mm(c1) + x_mm(c2)) / 2}" y="{y_dim - 6}" text-anchor="middle" font-size="12" fill="#166534">Center spacing: {layout.uniform_center_spacing_mm:.2f} mm</text>',
+                f'<line x1="{x_mm(c1)}" y1="{y_dim_c2c}" x2="{x_mm(c2)}" y2="{y_dim_c2c}" stroke="#16a34a" stroke-width="1.5"/>',
+                f'<line x1="{x_mm(c1)}" y1="{y_dim_c2c - 5}" x2="{x_mm(c1)}" y2="{y_dim_c2c + 5}" stroke="#16a34a" stroke-width="1"/>',
+                f'<line x1="{x_mm(c2)}" y1="{y_dim_c2c - 5}" x2="{x_mm(c2)}" y2="{y_dim_c2c + 5}" stroke="#16a34a" stroke-width="1"/>',
+                f'<text x="{(x_mm(c1) + x_mm(c2)) / 2}" y="{y_dim_c2c - 6}" text-anchor="middle" font-size="12" fill="#166534">Standard center-to-center: {center_to_center:.2f} mm</text>',
+                f'<line x1="{x_mm(c1 + radius_mm)}" y1="{y_dim_gap}" x2="{x_mm(c2 - radius_mm)}" y2="{y_dim_gap}" stroke="#0f766e" stroke-width="1.5"/>',
+                f'<line x1="{x_mm(c1 + radius_mm)}" y1="{y_dim_gap - 5}" x2="{x_mm(c1 + radius_mm)}" y2="{y_dim_gap + 5}" stroke="#0f766e" stroke-width="1"/>',
+                f'<line x1="{x_mm(c2 - radius_mm)}" y1="{y_dim_gap - 5}" x2="{x_mm(c2 - radius_mm)}" y2="{y_dim_gap + 5}" stroke="#0f766e" stroke-width="1"/>',
+                f'<text x="{(x_mm(c1) + x_mm(c2)) / 2}" y="{y_dim_gap - 6}" text-anchor="middle" font-size="12" fill="#0f766e">Standard edge gap: {standard_edge_gap:.2f} mm</text>',
             ]
         )
 
     if use_closer_waist_pair and waist_left is not None and waist_right is not None:
-        y_gap = rect_y + strip_h_px + 30
+        y_c2c_waist = rect_y + 14
+        waist_center_to_center = waist_right - waist_left
+        svg.extend(
+            [
+                f'<line x1="{x_mm(waist_left)}" y1="{y_c2c_waist}" x2="{x_mm(waist_right)}" y2="{y_c2c_waist}" stroke="#b45309" stroke-width="1.6"/>',
+                f'<line x1="{x_mm(waist_left)}" y1="{y_c2c_waist - 5}" x2="{x_mm(waist_left)}" y2="{y_c2c_waist + 5}" stroke="#b45309" stroke-width="1"/>',
+                f'<line x1="{x_mm(waist_right)}" y1="{y_c2c_waist - 5}" x2="{x_mm(waist_right)}" y2="{y_c2c_waist + 5}" stroke="#b45309" stroke-width="1"/>',
+                f'<text x="{(x_mm(waist_left) + x_mm(waist_right)) / 2}" y="{y_c2c_waist - 6}" text-anchor="middle" font-size="12" fill="#92400e">Waist center-to-center: {waist_center_to_center:.2f} mm</text>',
+            ]
+        )
+
+        y_gap = rect_y + strip_h_px + 96
         svg.extend(
             [
                 f'<line x1="{x_mm(waist_left + radius_mm)}" y1="{y_gap}" x2="{x_mm(waist_right - radius_mm)}" y2="{y_gap}" stroke="#ea580c" stroke-width="1.6"/>',
@@ -312,7 +361,7 @@ def main() -> None:
                 layout=layout,
                 use_closer_waist_pair=use_closer_waist_pair,
             ),
-            height=280,
+            height=400,
         )
 
     metric_cols = st.columns(5)
