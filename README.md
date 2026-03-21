@@ -62,7 +62,7 @@ A precise table listing every grommet with:
 
 ### Printable export
 - **Download SVG (100% scale)** — a full-size SVG you can open in a browser or Inkscape and print at 100%, then cut out and use directly on your fabric as a marking template
-- **Download PDF Letter (100% scale, multi-page)** — the same template tiled across US Letter pages (landscape), automatically spanning as many pages as needed; includes alignment guides to join pages together
+- **Download PDF Letter (100% scale, multi-page)** — the same template tiled across US Letter pages (landscape), automatically spanning as many pages as needed; includes alignment guides to join pages together. It also prints fine on **A4 paper** as long as you keep printing at **100% / Actual size**.
 
 Both exports embed all your input parameters so the template is self-documenting.
 
