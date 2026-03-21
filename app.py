@@ -603,7 +603,11 @@ def main() -> None:
     left, right = st.columns([1, 2], gap="large")
 
     with left:
-        unit_mode = st.toggle("Use imperial units (inches)", value=False)
+        unit_mode = st.toggle(
+            "Use imperial units (inches)",
+            value=False,
+            help="Switch between millimetres and inches for all inputs and displayed values.",
+        )
         unit_label = "in" if unit_mode else "mm"
         input_to_mm = MM_PER_INCH if unit_mode else 1.0
         mm_to_output = 1 / MM_PER_INCH if unit_mode else 1.0
@@ -614,6 +618,7 @@ def main() -> None:
             value=round(350.0 / MM_PER_INCH, 2) if unit_mode else 350.0,
             step=0.01 if unit_mode else 1.0,
             format="%.2f" if unit_mode else "%.1f",
+            help="Total length of the strip where grommets will be placed.",
         )
         margin_input = st.number_input(
             f"End margin each side ({unit_label})",
@@ -621,6 +626,7 @@ def main() -> None:
             value=round(20.0 / MM_PER_INCH, 2) if unit_mode else 20.0,
             step=0.01 if unit_mode else 0.5,
             format="%.2f" if unit_mode else "%.1f",
+            help="Distance from each strip end to the nearest grommet edge.",
         )
         diameter_input = st.number_input(
             f"Grommet external diameter ({unit_label})",
@@ -628,13 +634,20 @@ def main() -> None:
             value=round(9.0 / MM_PER_INCH, 2) if unit_mode else 9.0,
             step=0.01 if unit_mode else 1.0,
             format="%.2f" if unit_mode else "%.1f",
+            help="Outside diameter of the grommet ring (not the inner hole).",
         )
 
         length_mm = length_input * input_to_mm
         margin_mm = margin_input * input_to_mm
         diameter_mm = diameter_input * input_to_mm
         radius_mm = diameter_mm / 2
-        count = st.number_input("Number of grommets", min_value=1, value=6, step=1)
+        count = st.number_input(
+            "Number of grommets",
+            min_value=1,
+            value=6,
+            step=1,
+            help="Total number of grommets along the strip.",
+        )
         waist_default = length_input / 2
         waist_position_mm = st.number_input(
             f"Waist position from strip start ({unit_label})",
@@ -643,8 +656,13 @@ def main() -> None:
             value=float(waist_default),
             step=0.01 if unit_mode else 0.5,
             format="%.2f" if unit_mode else "%.1f",
+            help="Target waist location measured from the strip start.",
         ) * input_to_mm
-        use_closer_waist_pair = st.checkbox("Use closer waist grommet pair", value=False)
+        use_closer_waist_pair = st.checkbox(
+            "Use closer waist grommet pair",
+            value=False,
+            help="Places the two waist grommets closer together than the standard spacing.",
+        )
         waist_edge_gap_mm = st.number_input(
             f"Waist pair edge gap ({unit_label})",
             min_value=0.0,
@@ -808,6 +826,10 @@ def main() -> None:
         st.caption("PDF export is unavailable because reportlab is not installed. SVG export is ready to print.")
 
     st.caption(f"SVG export mode: {printable_orientation}. Drawing scale: {printable_scale * 100:.2f}%.")
+
+    st.subheader("Help")
+    st.markdown("- README: https://github.com/adumont/grommet-planner")
+    st.caption("License: GPL-3.0-only. This project is free to use.")
 
 
 if __name__ == "__main__":
