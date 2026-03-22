@@ -26,6 +26,52 @@ except Exception:
 
 MM_PER_INCH = 25.4
 APP_URL = "https://grommet-planner.streamlit.app/"
+MODE_GROMMETS = "Grommets"
+MODE_BUTTONHOLES = "Buttonholes"
+
+
+def _planner_terms(planner_mode: str) -> dict[str, str]:
+    if planner_mode == MODE_BUTTONHOLES:
+        return {
+            "item_singular": "buttonhole",
+            "item_plural": "buttonholes",
+            "line": "Bust",
+            "line_lower": "bust",
+            "line_title": "bust line",
+            "size_label": "Buttonhole length",
+            "app_title": "Buttonhole Strip Planner",
+            "app_subtitle": "Plan evenly spaced buttonholes on a strip with end margins.",
+        }
+
+    return {
+        "item_singular": "grommet",
+        "item_plural": "grommets",
+        "line": "Waist",
+        "line_lower": "waist",
+        "line_title": "waist",
+        "size_label": "Grommet external diameter",
+        "app_title": "Grommet Strip Planner",
+        "app_subtitle": "Plan evenly spaced grommet centers on a strip with end margins.",
+    }
+
+
+def _buttonhole_dimensions(feature_length_mm: float, scale_factor: float, flip_90: bool) -> tuple[float, float]:
+    long_side = max(1e-6, feature_length_mm) * scale_factor
+    short_side = max(0.6 * scale_factor, long_side / 10)
+    if flip_90:
+        return short_side, long_side
+    return long_side, short_side
+
+
+def _buttonhole_is_flipped(index: int, total: int, flip_all_90: bool, flip_last_90: bool) -> bool:
+    if flip_all_90:
+        return True
+    return flip_last_90 and total > 0 and index == (total - 1)
+
+
+def _buttonhole_half_extent_mm(feature_length_mm: float, flipped_90: bool) -> float:
+    width_mm, _ = _buttonhole_dimensions(feature_length_mm, 1.0, flipped_90)
+    return width_mm / 2
 
 
 @dataclass
@@ -41,9 +87,19 @@ class GrommetLayout:
     warnings: list[str]
 
 
-def _build_spacing_lists(centers_mm: list[float], radius_mm: float) -> tuple[list[float], list[float], float | None]:
+def _build_spacing_lists(
+    centers_mm: list[float],
+    radius_mm: float,
+    feature_half_sizes_mm: list[float] | None = None,
+) -> tuple[list[float], list[float], float | None]:
     center_spacings = [centers_mm[i + 1] - centers_mm[i] for i in range(len(centers_mm) - 1)]
-    edge_gaps = [spacing - (2 * radius_mm) for spacing in center_spacings]
+    if feature_half_sizes_mm is not None and len(feature_half_sizes_mm) == len(centers_mm):
+        edge_gaps = [
+            center_spacings[i] - (feature_half_sizes_mm[i] + feature_half_sizes_mm[i + 1])
+            for i in range(len(center_spacings))
+        ]
+    else:
+        edge_gaps = [spacing - (2 * radius_mm) for spacing in center_spacings]
 
     if not center_spacings:
         return center_spacings, edge_gaps, None
@@ -86,6 +142,11 @@ def build_printable_svg_letter(
     use_closer_waist_pair: bool,
     count: int,
     waist_edge_gap_mm: float,
+    planner_mode: str,
+    item_plural: str,
+    line_label: str,
+    buttonhole_flip_90: bool,
+    buttonhole_flip_last_90: bool,
 ) -> tuple[str, float, str]:
     page_margin = 10.0
     page_w = length_mm + (2 * page_margin)
@@ -106,7 +167,7 @@ def build_printable_svg_letter(
     svg: list[str] = [
         f'<svg xmlns="http://www.w3.org/2000/svg" width="{page_w}mm" height="{page_h}mm" viewBox="0 0 {page_w} {page_h}">',
         f'<rect x="0.5" y="0.5" width="{page_w - 1}" height="{page_h - 1}" fill="white" stroke="#d4d4d8" stroke-width="0.5"/>',
-        f'<text x="{page_margin}" y="10" font-size="6" fill="#18181b">Grommet template (full scale SVG)</text>',
+        f'<text x="{page_margin}" y="10" font-size="6" fill="#18181b">{item_plural[:-1].capitalize()} template (full scale SVG)</text>',
         f'<text x="{page_margin}" y="16" font-size="5" fill="#18181b">Print setting: Actual size / 100%. Drawing scale: {scale * 100:.2f}%</text>',
         f'<rect x="{x_pos(0)}" y="{strip_y}" width="{length_mm * scale}" height="{strip_h}" fill="#ffffff" stroke="#111827" stroke-width="0.6"/>',
         f'<line x1="{x_pos(0)}" y1="{strip_y + strip_h + 6}" x2="{x_pos(length_mm)}" y2="{strip_y + strip_h + 6}" stroke="#111827" stroke-width="0.4"/>',
@@ -130,9 +191,20 @@ def build_printable_svg_letter(
         )
         stroke = "#c2410c" if is_waist else "#1f2937"
         fill = "#fff7ed" if is_waist else "#ffffff"
+        if planner_mode == MODE_BUTTONHOLES:
+            flipped_90 = _buttonhole_is_flipped(
+                index=index,
+                total=len(layout.centers_mm),
+                flip_all_90=buttonhole_flip_90,
+                flip_last_90=(buttonhole_flip_last_90 and (not buttonhole_flip_90)),
+            )
+            rect_w, rect_h = _buttonhole_dimensions(2 * radius_mm, scale, flipped_90)
+            shape = f'<rect x="{x_pos(center) - (rect_w / 2)}" y="{center_y - (rect_h / 2)}" width="{rect_w}" height="{rect_h}" rx="0.8" fill="{fill}" stroke="{stroke}" stroke-width="0.5"/>'
+        else:
+            shape = f'<circle cx="{x_pos(center)}" cy="{center_y}" r="{max(0.8, radius_mm * scale)}" fill="{fill}" stroke="{stroke}" stroke-width="0.5"/>'
         svg.extend(
             [
-                f'<circle cx="{x_pos(center)}" cy="{center_y}" r="{max(0.8, radius_mm * scale)}" fill="{fill}" stroke="{stroke}" stroke-width="0.5"/>',
+                shape,
                 f'<line x1="{x_pos(center)}" y1="{strip_y - 1}" x2="{x_pos(center)}" y2="{strip_y + strip_h + 1}" stroke="{stroke}" stroke-width="0.35" stroke-dasharray="1.2 1.2"/>',
             ]
         )
@@ -146,7 +218,7 @@ def build_printable_svg_letter(
         svg.extend(
             [
                 f'<line x1="{x_pos(waist_x)}" y1="{strip_y - 7}" x2="{x_pos(waist_x)}" y2="{strip_y + strip_h + 7}" stroke="#b91c1c" stroke-width="0.45" stroke-dasharray="1.5 1.5"/>',
-                f'<text x="{x_pos(waist_x)}" y="{strip_y + strip_h + 18}" text-anchor="middle" font-size="4.3" fill="#b91c1c">Waist: {fmt_both(waist_x)}</text>',
+                f'<text x="{x_pos(waist_x)}" y="{strip_y + strip_h + 18}" text-anchor="middle" font-size="4.3" fill="#b91c1c">{line_label}: {fmt_both(waist_x)}</text>',
             ]
         )
 
@@ -189,11 +261,11 @@ def build_printable_svg_letter(
                 f'<line x1="{x_pos(waist_left)}" y1="{y_waist_top}" x2="{x_pos(waist_right)}" y2="{y_waist_top}" stroke="#b45309" stroke-width="0.55"/>',
                 f'<line x1="{x_pos(waist_left)}" y1="{y_waist_top - 2}" x2="{x_pos(waist_left)}" y2="{y_waist_top + 2}" stroke="#b45309" stroke-width="0.4"/>',
                 f'<line x1="{x_pos(waist_right)}" y1="{y_waist_top - 2}" x2="{x_pos(waist_right)}" y2="{y_waist_top + 2}" stroke="#b45309" stroke-width="0.4"/>',
-                f'<text x="{(x_pos(waist_left) + x_pos(waist_right)) / 2}" y="{y_waist_top - 3}" text-anchor="middle" font-size="4.2" fill="#92400e">Waist center-to-center: {fmt_both(waist_c2c)}</text>',
+                f'<text x="{(x_pos(waist_left) + x_pos(waist_right)) / 2}" y="{y_waist_top - 3}" text-anchor="middle" font-size="4.2" fill="#92400e">{line_label} center-to-center: {fmt_both(waist_c2c)}</text>',
                 f'<line x1="{x_pos(waist_left + radius_mm)}" y1="{y_waist_gap}" x2="{x_pos(waist_right - radius_mm)}" y2="{y_waist_gap}" stroke="#ea580c" stroke-width="0.55"/>',
                 f'<line x1="{x_pos(waist_left + radius_mm)}" y1="{y_waist_gap - 2}" x2="{x_pos(waist_left + radius_mm)}" y2="{y_waist_gap + 2}" stroke="#ea580c" stroke-width="0.4"/>',
                 f'<line x1="{x_pos(waist_right - radius_mm)}" y1="{y_waist_gap - 2}" x2="{x_pos(waist_right - radius_mm)}" y2="{y_waist_gap + 2}" stroke="#ea580c" stroke-width="0.4"/>',
-                f'<text x="{(x_pos(waist_left) + x_pos(waist_right)) / 2}" y="{y_waist_gap - 3}" text-anchor="middle" font-size="4.2" fill="#9a3412">Waist edge gap: {fmt_both(waist_c2c - (2 * radius_mm))}</text>',
+                f'<text x="{(x_pos(waist_left) + x_pos(waist_right)) / 2}" y="{y_waist_gap - 3}" text-anchor="middle" font-size="4.2" fill="#9a3412">{line_label} edge gap: {fmt_both(waist_c2c - (2 * radius_mm))}</text>',
             ]
         )
 
@@ -208,9 +280,10 @@ def build_printable_svg_letter(
 
     param_y = 130.0
     waist_n = (layout.waist_pair_indices[1] - layout.waist_pair_indices[0] + 1) if (use_closer_waist_pair and layout.waist_pair_indices is not None) else 2
-    waist_info = f"  |  Count: {waist_n}  |  Waist at: {fmt_both(layout.waist_position_mm)}  |  Waist edge gap: {fmt_both(waist_edge_gap_mm)}" if use_closer_waist_pair else ""
-    param_line1 = f"Strip length: {fmt_both(length_mm)}   |   Top margin: {fmt_both(margin_top_mm)}   |   Bottom margin: {fmt_both(margin_bottom_mm)}   |   Diameter: {fmt_both(radius_mm * 2)}   |   Grommets: {count}"
-    param_line2 = f"Waist grommets: {'Yes' + waist_info if use_closer_waist_pair else 'No'}"
+    waist_info = f"  |  Count: {waist_n}  |  {line_label} at: {fmt_both(layout.waist_position_mm)}  |  {line_label} edge gap: {fmt_both(waist_edge_gap_mm)}" if use_closer_waist_pair else ""
+    feature_size_label = "Length" if planner_mode == MODE_BUTTONHOLES else "Diameter"
+    param_line1 = f"Strip length: {fmt_both(length_mm)}   |   Top margin: {fmt_both(margin_top_mm)}   |   Bottom margin: {fmt_both(margin_bottom_mm)}   |   {feature_size_label}: {fmt_both(radius_mm * 2)}   |   {item_plural.capitalize()}: {count}"
+    param_line2 = f"Closer {line_label.lower()} {item_plural}: {'Yes' + waist_info if use_closer_waist_pair else 'No'}"
     svg.extend([
         f'<rect x="{page_margin}" y="{param_y - 5}" width="{page_w - 2 * page_margin}" height="26" fill="#f8fafc" stroke="#e2e8f0" stroke-width="0.4" rx="1"/>',
         f'<text x="{page_margin + 3}" y="{param_y + 3}" font-size="4.8" fill="#334155">{param_line1}</text>',
@@ -231,6 +304,11 @@ def build_printable_pdf_letter(
     use_closer_waist_pair: bool,
     count: int,
     waist_edge_gap_mm: float,
+    planner_mode: str,
+    item_plural: str,
+    line_label: str,
+    buttonhole_flip_90: bool,
+    buttonhole_flip_last_90: bool,
 ) -> tuple[bytes, int]:
     if not REPORTLAB_AVAILABLE or RL_pagesizes is None or RL_units is None or RL_canvas_module is None:
         raise RuntimeError("PDF export requested but reportlab is not available.")
@@ -260,7 +338,7 @@ def build_printable_pdf_letter(
         segment_width = segment_end - segment_start
 
         pdf.setFont("Helvetica", 8)
-        pdf.drawString(mm_to_pt(10), mm_to_pt(page_h - 12), "Grommet template Letter landscape - print at 100% / actual size")
+        pdf.drawString(mm_to_pt(10), mm_to_pt(page_h - 12), f"{item_plural[:-1].capitalize()} template Letter landscape - print at 100% / actual size")
         pdf.drawString(
             mm_to_pt(10),
             mm_to_pt(page_h - 17),
@@ -296,11 +374,28 @@ def build_printable_pdf_letter(
             pdf.line(mm_to_pt(x), mm_to_pt(page_h - (strip_y - 4)), mm_to_pt(x), mm_to_pt(page_h - (strip_y + strip_h + 4)))
             pdf.setDash()
 
-        for center in layout.centers_mm:
+        for index, center in enumerate(layout.centers_mm):
             if (center + radius_mm) < segment_start or (center - radius_mm) > segment_end:
                 continue
             x_center = x_local(center, segment_start)
-            pdf.circle(mm_to_pt(x_center), mm_to_pt(page_h - center_y), mm_to_pt(max(0.8, radius_mm)), stroke=1, fill=0)
+            if planner_mode == MODE_BUTTONHOLES:
+                flipped_90 = _buttonhole_is_flipped(
+                    index=index,
+                    total=len(layout.centers_mm),
+                    flip_all_90=buttonhole_flip_90,
+                    flip_last_90=(buttonhole_flip_last_90 and (not buttonhole_flip_90)),
+                )
+                rect_w, rect_h = _buttonhole_dimensions(2 * radius_mm, 1.0, flipped_90)
+                pdf.rect(
+                    mm_to_pt(x_center - (rect_w / 2)),
+                    mm_to_pt(page_h - (center_y + (rect_h / 2))),
+                    mm_to_pt(rect_w),
+                    mm_to_pt(rect_h),
+                    stroke=1,
+                    fill=0,
+                )
+            else:
+                pdf.circle(mm_to_pt(x_center), mm_to_pt(page_h - center_y), mm_to_pt(max(0.8, radius_mm)), stroke=1, fill=0)
             pdf.setDash(1.5, 1.5)
             pdf.line(mm_to_pt(x_center), mm_to_pt(page_h - (strip_y - 1)), mm_to_pt(x_center), mm_to_pt(page_h - (strip_y + strip_h + 1)))
             pdf.setDash()
@@ -318,9 +413,10 @@ def build_printable_pdf_letter(
             pdf.drawString(mm_to_pt(page_margin + segment_width - 32), mm_to_pt(page_h - (strip_y + strip_h + 12)), "Join next page here")
 
         pdf.setFont("Helvetica", 6)
-        pdf.drawString(mm_to_pt(10), mm_to_pt(page_h - (strip_y + strip_h + 14)), f"Total length: {fmt_both(length_mm)}   Top margin: {fmt_both(margin_top_mm)}   Bottom margin: {fmt_both(margin_bottom_mm)}   Diameter: {fmt_both(radius_mm * 2)}   Grommets: {count}")
+        feature_size_label = "Length" if planner_mode == MODE_BUTTONHOLES else "Diameter"
+        pdf.drawString(mm_to_pt(10), mm_to_pt(page_h - (strip_y + strip_h + 14)), f"Total length: {fmt_both(length_mm)}   Top margin: {fmt_both(margin_top_mm)}   Bottom margin: {fmt_both(margin_bottom_mm)}   {feature_size_label}: {fmt_both(radius_mm * 2)}   {item_plural.capitalize()}: {count}")
         waist_n = (layout.waist_pair_indices[1] - layout.waist_pair_indices[0] + 1) if (use_closer_waist_pair and layout.waist_pair_indices is not None) else 2
-        waist_info = f"Waist grommets: {waist_n}   Waist at: {fmt_both(layout.waist_position_mm)}   Waist edge gap: {fmt_both(waist_edge_gap_mm)}" if use_closer_waist_pair else "Waist grommets: No"
+        waist_info = f"Closer {line_label.lower()} {item_plural}: {waist_n}   {line_label} at: {fmt_both(layout.waist_position_mm)}   {line_label} edge gap: {fmt_both(waist_edge_gap_mm)}" if use_closer_waist_pair else f"Closer {line_label.lower()} {item_plural}: No"
         pdf.drawString(mm_to_pt(10), mm_to_pt(page_h - (strip_y + strip_h + 19)), waist_info)
         pdf.drawString(mm_to_pt(10), mm_to_pt(page_h - (strip_y + strip_h + 24)), APP_URL)
         centers_on_page = [f"{idx + 1}:{v:.2f}mm/{v / MM_PER_INCH:.3f}in" for idx, v in enumerate(layout.centers_mm) if segment_start <= v <= segment_end]
@@ -347,13 +443,16 @@ def calculate_layout(
     waist_position_mm: float,
     waist_edge_gap_mm: float,
     waist_count: int = 2,
+    item_plural: str = "grommets",
+    line_title: str = "waist",
+    feature_half_sizes_mm: list[float] | None = None,
 ) -> GrommetLayout:
     warnings: list[str] = []
     start_center = margin_top_mm + radius_mm
     end_center = length_mm - margin_bottom_mm - radius_mm
 
     if end_center - start_center < 0:
-        warnings.append("Margins + grommet size exceed strip length. Reduce margins/diameter or increase strip length.")
+        warnings.append(f"Margins + {item_plural[:-1]} size exceed strip length. Reduce margins/size or increase strip length.")
         return GrommetLayout(
             centers_mm=[],
             center_spacings_mm=[],
@@ -369,8 +468,8 @@ def calculate_layout(
     if count == 1:
         center = length_mm / 2
         if center - radius_mm < margin_top_mm or center + radius_mm > (length_mm - margin_bottom_mm):
-            warnings.append("Single grommet does not fit inside strip with the selected margins/diameter.")
-        center_spacings, edge_gaps, uniform_spacing = _build_spacing_lists([center], radius_mm)
+            warnings.append(f"Single {item_plural[:-1]} does not fit inside strip with the selected margins/size.")
+        center_spacings, edge_gaps, uniform_spacing = _build_spacing_lists([center], radius_mm, feature_half_sizes_mm)
         return GrommetLayout(
             centers_mm=[center],
             center_spacings_mm=center_spacings,
@@ -387,9 +486,9 @@ def calculate_layout(
         span_for_centers = end_center - start_center
         center_spacing = span_for_centers / (count - 1)
         centers = [start_center + i * center_spacing for i in range(count)]
-        center_spacings, edge_gaps, uniform_spacing = _build_spacing_lists(centers, radius_mm)
+        center_spacings, edge_gaps, uniform_spacing = _build_spacing_lists(centers, radius_mm, feature_half_sizes_mm)
         if edge_gaps and min(edge_gaps) < 0:
-            warnings.append("Grommets overlap with current settings (negative edge-to-edge gap).")
+            warnings.append(f"{item_plural.capitalize()} overlap with current settings (negative edge-to-edge gap).")
 
         return GrommetLayout(
             centers_mm=centers,
@@ -404,7 +503,7 @@ def calculate_layout(
         )
 
     if count < waist_count:
-        warnings.append(f"Closer waist arrangement requires at least {waist_count} grommets.")
+        warnings.append(f"Closer {line_title} arrangement requires at least {waist_count} {item_plural}.")
         return GrommetLayout(
             centers_mm=[],
             center_spacings_mm=[],
@@ -425,10 +524,10 @@ def calculate_layout(
 
     if left_waist_center < start_center or right_waist_center > end_center:
         warnings.append(
-            "Waist grommets do not fit between margins. Reduce waist gap/radius, move waist, or increase strip length."
+            f"{line_title.capitalize()} {item_plural} do not fit between margins. Reduce {line_title} gap/size, move {line_title}, or increase strip length."
         )
     if waist_count > 1 and left_waist_center >= right_waist_center:
-        warnings.append("Invalid waist arrangement geometry.")
+        warnings.append(f"Invalid {line_title} arrangement geometry.")
 
     remaining_count = count - waist_count
     left_span = max(0.0, left_waist_center - start_center)
@@ -456,7 +555,7 @@ def calculate_layout(
     if left_count > 0:
         step_left = (left_waist_center - start_center) / left_count
         if step_left <= 0:
-            warnings.append("No space for left-side grommets before the waist pair.")
+            warnings.append(f"No space for left-side {item_plural} before the {line_title} cluster.")
         centers.extend(start_center + i * step_left for i in range(left_count))
 
     centers.extend(waist_centers_list)
@@ -464,15 +563,15 @@ def calculate_layout(
     if right_count > 0:
         step_right = (end_center - right_waist_center) / right_count
         if step_right <= 0:
-            warnings.append("No space for right-side grommets after the waist pair.")
+            warnings.append(f"No space for right-side {item_plural} after the {line_title} cluster.")
         centers.extend(right_waist_center + j * step_right for j in range(1, right_count + 1))
 
     if any(centers[i + 1] <= centers[i] for i in range(len(centers) - 1)):
         warnings.append("Computed centers are not strictly increasing. Check waist position and gap values.")
 
-    center_spacings, edge_gaps, uniform_spacing = _build_spacing_lists(centers, radius_mm)
+    center_spacings, edge_gaps, uniform_spacing = _build_spacing_lists(centers, radius_mm, feature_half_sizes_mm)
     if edge_gaps and min(edge_gaps) < 0:
-        warnings.append("Grommets overlap with current settings (negative edge-to-edge gap).")
+        warnings.append(f"{item_plural.capitalize()} overlap with current settings (negative edge-to-edge gap).")
 
     return GrommetLayout(
         centers_mm=centers,
@@ -496,6 +595,10 @@ def build_svg(
     use_closer_waist_pair: bool,
     display_unit: str,
     display_factor: float,
+    planner_mode: str,
+    line_label: str,
+    buttonhole_flip_90: bool,
+    buttonhole_flip_last_90: bool,
 ) -> str:
     width_px = 1000
     strip_h_px = 120
@@ -541,7 +644,7 @@ def build_svg(
         svg.extend(
             [
                 f'<line x1="{x_mm(waist_x_mm)}" y1="{rect_y - 2}" x2="{x_mm(waist_x_mm)}" y2="{rect_y + strip_h_px + 2}" stroke="#dc2626" stroke-dasharray="4 4" stroke-width="1.5"/>',
-                f'<text x="{x_mm(waist_x_mm)}" y="{rect_y + strip_h_px + 16}" text-anchor="middle" font-size="12" fill="#b91c1c">Waist: {disp(waist_x_mm):.2f} {display_unit}</text>',
+                f'<text x="{x_mm(waist_x_mm)}" y="{rect_y + strip_h_px + 16}" text-anchor="middle" font-size="12" fill="#b91c1c">{line_label}: {disp(waist_x_mm):.2f} {display_unit}</text>',
             ]
         )
 
@@ -561,9 +664,20 @@ def build_svg(
         )
         fill = "#fdba74" if is_waist_pair else "#bfdbfe"
         stroke = "#c2410c" if is_waist_pair else "#1d4ed8"
+        if planner_mode == MODE_BUTTONHOLES:
+            flipped_90 = _buttonhole_is_flipped(
+                index=index,
+                total=len(layout.centers_mm),
+                flip_all_90=buttonhole_flip_90,
+                flip_last_90=(buttonhole_flip_last_90 and (not buttonhole_flip_90)),
+            )
+            rect_w, rect_h = _buttonhole_dimensions(2 * radius_mm, scale_x, flipped_90)
+            shape = f'<rect x="{x_mm(center) - (rect_w / 2)}" y="{center_y - (rect_h / 2)}" width="{rect_w}" height="{rect_h}" rx="2" fill="{fill}" stroke="{stroke}" stroke-width="1.5"/>'
+        else:
+            shape = f'<circle cx="{x_mm(center)}" cy="{center_y}" r="{radius_mm * scale_x}" fill="{fill}" stroke="{stroke}" stroke-width="1.5"/>'
         svg.extend(
             [
-                f'<circle cx="{x_mm(center)}" cy="{center_y}" r="{radius_mm * scale_x}" fill="{fill}" stroke="{stroke}" stroke-width="1.5"/>',
+                shape,
                 f'<line x1="{x_mm(center)}" y1="{rect_y}" x2="{x_mm(center)}" y2="{rect_y + strip_h_px}" stroke="{stroke}" stroke-dasharray="3 3" stroke-width="1"/>',
             ]
         )
@@ -612,7 +726,7 @@ def build_svg(
                 f'<line x1="{x_mm(waist_left)}" y1="{y_c2c_waist}" x2="{x_mm(waist_right)}" y2="{y_c2c_waist}" stroke="#b45309" stroke-width="1.6"/>',
                 f'<line x1="{x_mm(waist_left)}" y1="{y_c2c_waist - 5}" x2="{x_mm(waist_left)}" y2="{y_c2c_waist + 5}" stroke="#b45309" stroke-width="1"/>',
                 f'<line x1="{x_mm(waist_right)}" y1="{y_c2c_waist - 5}" x2="{x_mm(waist_right)}" y2="{y_c2c_waist + 5}" stroke="#b45309" stroke-width="1"/>',
-                f'<text x="{(x_mm(waist_left) + x_mm(waist_right)) / 2}" y="{y_c2c_waist - 6}" text-anchor="middle" font-size="12" fill="#92400e">Waist center-to-center: {disp(waist_center_to_center):.2f} {display_unit}</text>',
+                f'<text x="{(x_mm(waist_left) + x_mm(waist_right)) / 2}" y="{y_c2c_waist - 6}" text-anchor="middle" font-size="12" fill="#92400e">{line_label} center-to-center: {disp(waist_center_to_center):.2f} {display_unit}</text>',
             ]
         )
 
@@ -622,7 +736,7 @@ def build_svg(
                 f'<line x1="{x_mm(waist_left + radius_mm)}" y1="{y_gap}" x2="{x_mm(waist_right - radius_mm)}" y2="{y_gap}" stroke="#ea580c" stroke-width="1.6"/>',
                 f'<line x1="{x_mm(waist_left + radius_mm)}" y1="{y_gap - 5}" x2="{x_mm(waist_left + radius_mm)}" y2="{y_gap + 5}" stroke="#ea580c" stroke-width="1"/>',
                 f'<line x1="{x_mm(waist_right - radius_mm)}" y1="{y_gap - 5}" x2="{x_mm(waist_right - radius_mm)}" y2="{y_gap + 5}" stroke="#ea580c" stroke-width="1"/>',
-                f'<text x="{(x_mm(waist_left) + x_mm(waist_right)) / 2}" y="{y_gap - 6}" text-anchor="middle" font-size="12" fill="#9a3412">Waist edge gap: {disp(waist_right - waist_left - (2 * radius_mm)):.2f} {display_unit}</text>',
+                f'<text x="{(x_mm(waist_left) + x_mm(waist_right)) / 2}" y="{y_gap - 6}" text-anchor="middle" font-size="12" fill="#9a3412">{line_label} edge gap: {disp(waist_right - waist_left - (2 * radius_mm)):.2f} {display_unit}</text>',
             ]
         )
 
@@ -631,9 +745,7 @@ def build_svg(
 
 
 def main() -> None:
-    st.set_page_config(page_title="Grommet Strip Planner", layout="wide")
-    st.title("Grommet Strip Planner")
-    st.write("Plan evenly spaced grommet centers on a strip with end margins.")
+    st.set_page_config(page_title="Strip Planner", layout="wide")
 
     if "length_mm" not in st.session_state:
         st.session_state.length_mm = 330.0
@@ -649,12 +761,28 @@ def main() -> None:
         st.session_state.waist_edge_gap_mm = 16.0
     if "grommet_count" not in st.session_state:
         st.session_state.grommet_count = 10
+    if "item_count" not in st.session_state:
+        st.session_state.item_count = st.session_state.grommet_count
     if "use_closer_waist_pair" not in st.session_state:
         st.session_state.use_closer_waist_pair = True
+    if "waist_count" not in st.session_state:
+        st.session_state.waist_count = 2
+    if "planner_mode" not in st.session_state:
+        st.session_state.planner_mode = MODE_GROMMETS
+    if "buttonhole_flip_90" not in st.session_state:
+        st.session_state.buttonhole_flip_90 = False
+    if "buttonhole_flip_last_90" not in st.session_state:
+        st.session_state.buttonhole_flip_last_90 = True
+    if "bust_count" not in st.session_state:
+        st.session_state.bust_count = 1
     if "unit_mode" not in st.session_state:
         st.session_state.unit_mode = False
     if "_prev_unit_mode" not in st.session_state:
         st.session_state._prev_unit_mode = st.session_state.unit_mode
+
+    terms = _planner_terms(st.session_state.planner_mode)
+    st.title(terms["app_title"])
+    st.write(terms["app_subtitle"])
 
     def _sync_display_from_mm() -> None:
         factor = 1 / MM_PER_INCH if st.session_state.unit_mode else 1.0
@@ -694,6 +822,14 @@ def main() -> None:
     left, right = st.columns([1, 2], gap="large")
 
     with left:
+        planner_mode = st.radio(
+            "Planner mode",
+            options=[MODE_GROMMETS, MODE_BUTTONHOLES],
+            key="planner_mode",
+            horizontal=True,
+        )
+        terms = _planner_terms(planner_mode)
+
         unit_mode = st.toggle(
             "Use imperial units (inches)",
             key="unit_mode",
@@ -715,7 +851,7 @@ def main() -> None:
             format="%.2f" if unit_mode else "%.1f",
             key="length_display",
             on_change=_update_length_mm,
-            help="Total length of the strip where grommets will be placed.",
+            help=f"Total length of the strip where {terms['item_plural']} will be placed.",
         )
         margin_top_input = st.number_input(
             f"Top end margin ({unit_label})",
@@ -724,7 +860,7 @@ def main() -> None:
             format="%.2f" if unit_mode else "%.1f",
             key="margin_top_display",
             on_change=_update_margin_top_mm,
-            help="Distance from the top strip end to the nearest grommet edge.",
+            help=f"Distance from the top strip end to the nearest {terms['item_singular']} edge.",
         )
         margin_bottom_input = st.number_input(
             f"Bottom end margin ({unit_label})",
@@ -733,16 +869,20 @@ def main() -> None:
             format="%.2f" if unit_mode else "%.1f",
             key="margin_bottom_display",
             on_change=_update_margin_bottom_mm,
-            help="Distance from the bottom strip end to the nearest grommet edge.",
+            help=f"Distance from the bottom strip end to the nearest {terms['item_singular']} edge.",
         )
         diameter_input = st.number_input(
-            f"Grommet external diameter ({unit_label})",
+            f"{terms['size_label']} ({unit_label})",
             min_value=0.01 if unit_mode else 1.0,
             step=0.01 if unit_mode else 1.0,
             format="%.2f" if unit_mode else "%.1f",
             key="diameter_display",
             on_change=_update_diameter_mm,
-            help="Outside diameter of the grommet ring (not the inner hole).",
+            help=(
+                "Outside diameter of the grommet ring (not the inner hole)."
+                if planner_mode == MODE_GROMMETS
+                else "Buttonhole length measured along the strip."
+            ),
         )
 
         length_mm = length_input * input_to_mm
@@ -751,45 +891,74 @@ def main() -> None:
         diameter_mm = diameter_input * input_to_mm
         radius_mm = diameter_mm / 2
         count = st.number_input(
-            "Number of grommets",
+            f"Number of {terms['item_plural']}",
             min_value=1,
             step=1,
-            key="grommet_count",
-            help="Total number of grommets along the strip.",
+            key="item_count",
+            help=f"Total number of {terms['item_plural']} along the strip.",
         )
         waist_position_mm = st.number_input(
-            f"Waist position from top ({unit_label})",
+            f"{terms['line']} position from top ({unit_label})",
             min_value=0.0,
             max_value=float(length_input),
             step=0.01 if unit_mode else 0.5,
             format="%.2f" if unit_mode else "%.1f",
             key="waist_position_display",
             on_change=_update_waist_position_mm,
-            help="Target waist location measured from the top of the strip.",
+            help=f"Target {terms['line_lower']} location measured from the top of the strip.",
         ) * input_to_mm
         use_closer_waist_pair = st.checkbox(
-            "Closer waist grommets",
+            f"Closer {terms['line_lower']} {terms['item_plural']}",
             key="use_closer_waist_pair",
-            help="Places the waist grommets closer together than the standard spacing.",
+            help=f"Places the {terms['line_lower']} {terms['item_plural']} closer together than the standard spacing.",
         )
-        waist_count = st.number_input(
-            "Number of waist grommets",
-            min_value=2,
-            value=2,
-            step=1,
-            key="waist_count",
-            disabled=not use_closer_waist_pair,
-            help="How many grommets to place at the waist, evenly spaced and centered on the waist position.",
-        )
+        if planner_mode == MODE_BUTTONHOLES:
+            waist_count = st.number_input(
+                "Number of bust buttonholes",
+                min_value=1,
+                step=2,
+                key="bust_count",
+                disabled=not use_closer_waist_pair,
+                help="Odd number of buttonholes in the closer bust cluster, centered on the bust line.",
+            )
+            if int(waist_count) % 2 == 0:
+                waist_count = int(waist_count) + 1
+                st.session_state.bust_count = int(waist_count)
+                st.info(f"Bust buttonholes count must be odd. Using {int(waist_count)}.")
+            st.checkbox(
+                "Flip buttonholes 90°",
+                key="buttonhole_flip_90",
+                help="Rotate buttonhole rectangles by 90° in the diagram and exports.",
+            )
+            if not st.session_state.buttonhole_flip_90:
+                st.checkbox(
+                    "Flip last button 90°",
+                    key="buttonhole_flip_last_90",
+                    help="Rotate only the last buttonhole by 90° in the diagram and exports.",
+                )
+            else:
+                st.session_state.buttonhole_flip_last_90 = False
+        else:
+            waist_count = st.number_input(
+                "Number of waist grommets",
+                min_value=2,
+                value=2,
+                step=1,
+                key="waist_count",
+                disabled=not use_closer_waist_pair,
+                help="How many grommets to place at the waist, evenly spaced and centered on the waist position.",
+            )
+            st.session_state.buttonhole_flip_90 = False
+            st.session_state.buttonhole_flip_last_90 = True
         waist_edge_gap_mm = st.number_input(
-            f"Waist pair edge gap ({unit_label})",
+            f"{terms['line']} cluster edge gap ({unit_label})",
             min_value=0.0,
             step=0.01 if unit_mode else 0.5,
             format="%.2f" if unit_mode else "%.1f",
             key="waist_edge_gap_display",
             on_change=_update_waist_edge_gap_mm,
             disabled=not use_closer_waist_pair,
-            help="Edge-to-edge distance between adjacent waist grommets, centered at the waist position.",
+            help=f"Edge-to-edge distance between adjacent {terms['line_lower']} {terms['item_plural']}, centered at the {terms['line_lower']} position.",
         ) * input_to_mm
 
         st.session_state.length_mm = length_mm
@@ -798,6 +967,18 @@ def main() -> None:
         st.session_state.diameter_mm = diameter_mm
         st.session_state.waist_position_mm = waist_position_mm
         st.session_state.waist_edge_gap_mm = waist_edge_gap_mm
+        st.session_state.grommet_count = int(count)
+
+    feature_half_sizes_mm = [radius_mm] * int(count)
+    if planner_mode == MODE_BUTTONHOLES:
+        for idx in range(int(count)):
+            is_flipped = _buttonhole_is_flipped(
+                index=idx,
+                total=int(count),
+                flip_all_90=st.session_state.buttonhole_flip_90,
+                flip_last_90=(st.session_state.buttonhole_flip_last_90 and (not st.session_state.buttonhole_flip_90)),
+            )
+            feature_half_sizes_mm[idx] = _buttonhole_half_extent_mm(2 * radius_mm, is_flipped)
 
     layout = calculate_layout(
         length_mm=length_mm,
@@ -809,6 +990,9 @@ def main() -> None:
         waist_position_mm=waist_position_mm,
         waist_edge_gap_mm=waist_edge_gap_mm,
         waist_count=int(waist_count),
+        item_plural=terms["item_plural"],
+        line_title=terms["line_lower"],
+        feature_half_sizes_mm=feature_half_sizes_mm,
     )
 
     with right:
@@ -823,15 +1007,19 @@ def main() -> None:
                 use_closer_waist_pair=use_closer_waist_pair,
                 display_unit=unit_label,
                 display_factor=mm_to_output,
+                planner_mode=planner_mode,
+                line_label=terms["line"],
+                buttonhole_flip_90=st.session_state.buttonhole_flip_90,
+                buttonhole_flip_last_90=st.session_state.buttonhole_flip_last_90,
             ),
             height=400,
         )
 
     metric_cols = st.columns(4)
-    metric_cols[0].metric("Grommets", f"{count}")
+    metric_cols[0].metric(terms["item_plural"].capitalize(), f"{count}")
     metric_cols[1].metric("First center", f"{layout.start_center_mm * mm_to_output:.2f} {unit_label}")
     metric_cols[2].metric("Last center", f"{layout.end_center_mm * mm_to_output:.2f} {unit_label}")
-    metric_cols[3].metric("Waist position", f"{waist_position_mm * mm_to_output:.2f} {unit_label}")
+    metric_cols[3].metric(f"{terms['line']} position", f"{waist_position_mm * mm_to_output:.2f} {unit_label}")
     # derive left / waist / right spacing + gap values
     def _fmt(v: float | None) -> str:
         return f"{(v * mm_to_output):.2f} {unit_label}" if v is not None else "—"
@@ -851,9 +1039,9 @@ def main() -> None:
         eg_waist = _fmt(waist_gap)
         eg_right = _fmt(right_gaps[-1] if right_gaps else None)
     elif layout.center_spacings_mm:
-        uniform = _fmt(layout.uniform_center_spacing_mm) if layout.uniform_center_spacing_mm is not None else f"{min(layout.center_spacings_mm):.2f}..{max(layout.center_spacings_mm):.2f} mm"
+        uniform = _fmt(layout.uniform_center_spacing_mm) if layout.uniform_center_spacing_mm is not None else f"{min(layout.center_spacings_mm) * mm_to_output:.2f}..{max(layout.center_spacings_mm) * mm_to_output:.2f} {unit_label}"
         sp_left = sp_waist = sp_right = uniform
-        eg_val = _fmt(layout.edge_gaps_mm[0]) if len(layout.edge_gaps_mm) == 1 else (f"{min(layout.edge_gaps_mm):.2f}..{max(layout.edge_gaps_mm):.2f} mm" if layout.edge_gaps_mm else "—")
+        eg_val = _fmt(layout.edge_gaps_mm[0]) if len(layout.edge_gaps_mm) == 1 else (f"{min(layout.edge_gaps_mm) * mm_to_output:.2f}..{max(layout.edge_gaps_mm) * mm_to_output:.2f} {unit_label}" if layout.edge_gaps_mm else "—")
         eg_left = eg_waist = eg_right = eg_val
     else:
         sp_left = sp_waist = sp_right = "—"
@@ -863,15 +1051,15 @@ def main() -> None:
     with sp_col:
         st.markdown("**Center spacing**")
         sp_inner = st.columns(3)
-        sp_inner[0].metric("Top (above waist)", sp_left)
-        sp_inner[1].metric("Waist grommet spacing", sp_waist)
-        sp_inner[2].metric("Bottom (below waist)", sp_right)
+        sp_inner[0].metric(f"Top (above {terms['line_lower']})", sp_left)
+        sp_inner[1].metric(f"{terms['line']} spacing", sp_waist)
+        sp_inner[2].metric(f"Bottom (below {terms['line_lower']})", sp_right)
     with eg_col:
         st.markdown("**Edge-to-edge gap**")
         eg_inner = st.columns(3)
-        eg_inner[0].metric("Top (above waist)", eg_left)
-        eg_inner[1].metric("Waist grommet gap", eg_waist)
-        eg_inner[2].metric("Bottom (below waist)", eg_right)
+        eg_inner[0].metric(f"Top (above {terms['line_lower']})", eg_left)
+        eg_inner[1].metric(f"{terms['line']} gap", eg_waist)
+        eg_inner[2].metric(f"Bottom (below {terms['line_lower']})", eg_right)
 
     if layout.warnings:
         for warning in layout.warnings:
@@ -879,14 +1067,14 @@ def main() -> None:
     else:
         st.success("Layout is feasible with the current settings.")
 
-    st.subheader("Grommet center positions")
+    st.subheader(f"{terms['item_plural'].capitalize()} center positions")
     if layout.centers_mm:
         if layout.waist_pair_indices is not None and use_closer_waist_pair:
             left_index, right_index = layout.waist_pair_indices
             labels = [
-                f"Waist grommet {i - left_index + 1}" if left_index <= i <= right_index
-                else "Above waist" if i < left_index
-                else "Below waist"
+                f"{terms['line']} {terms['item_singular']} {i - left_index + 1}" if left_index <= i <= right_index
+                else f"Above {terms['line_lower']}" if i < left_index
+                else f"Below {terms['line_lower']}"
                 for i in range(len(layout.centers_mm))
             ]
         else:
@@ -903,7 +1091,7 @@ def main() -> None:
 
         df = pd.DataFrame(
             {
-                "Grommet #": list(range(1, len(layout.centers_mm) + 1)),
+                f"{terms['item_singular'].capitalize()} #": list(range(1, len(layout.centers_mm) + 1)),
                 f"Center from strip start ({unit_label})": [round(v * mm_to_output, 3) for v in layout.centers_mm],
                 "Type": labels,
                 f"Center spacing to next ({unit_label})": [round(v * mm_to_output, 3) if v is not None else None for v in spacing_to_next],
@@ -924,11 +1112,16 @@ def main() -> None:
         use_closer_waist_pair=use_closer_waist_pair,
         count=count,
         waist_edge_gap_mm=waist_edge_gap_mm,
+        planner_mode=planner_mode,
+        item_plural=terms["item_plural"],
+        line_label=terms["line"],
+        buttonhole_flip_90=st.session_state.buttonhole_flip_90,
+        buttonhole_flip_last_90=st.session_state.buttonhole_flip_last_90,
     )
     st.download_button(
         "Download SVG (100% scale)",
         data=printable_svg,
-        file_name="grommet_template_full_scale.svg",
+        file_name=("buttonhole_template_full_scale.svg" if planner_mode == MODE_BUTTONHOLES else "grommet_template_full_scale.svg"),
         mime="image/svg+xml",
         use_container_width=True,
     )
@@ -943,11 +1136,16 @@ def main() -> None:
             use_closer_waist_pair=use_closer_waist_pair,
             count=count,
             waist_edge_gap_mm=waist_edge_gap_mm,
+            planner_mode=planner_mode,
+            item_plural=terms["item_plural"],
+            line_label=terms["line"],
+            buttonhole_flip_90=st.session_state.buttonhole_flip_90,
+            buttonhole_flip_last_90=st.session_state.buttonhole_flip_last_90,
         )
         st.download_button(
             "Download PDF Letter (100% scale, multi-page)",
             data=printable_pdf,
-            file_name="grommet_template_letter.pdf",
+            file_name=("buttonhole_template_letter.pdf" if planner_mode == MODE_BUTTONHOLES else "grommet_template_letter.pdf"),
             mime="application/pdf",
             use_container_width=True,
         )
