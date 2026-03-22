@@ -34,7 +34,8 @@ This app does all the maths instantly and shows you exactly where to mark each g
 | Field | What it does |
 |---|---|
 | **Strip length (mm)** | Total length of your grommet strip |
-| **End margin each side (mm)** | Empty space left at both ends before the first/last grommet |
+| **Top end margin (mm)** | Empty space at the top end before the first grommet |
+| **Bottom end margin (mm)** | Empty space at the bottom end after the last grommet |
 | **Grommet external diameter (mm)** | The outer diameter of your grommets |
 | **Number of grommets** | How many grommets to place |
 | **Waist position from strip start (mm)** | Where the waist falls, measured from the top of the strip |
@@ -45,7 +46,7 @@ You can switch units with **Use imperial units (inches)**. The app converts auto
 
 ### Layout diagram
 A live SVG diagram in the app shows:
-- The strip outline with margins marked in blue
+- The strip outline with top and bottom margins marked in blue (each shown independently)
 - All grommet circles (waist grommets highlighted in orange)
 - A horizontal centre line through all grommet centres
 - A red dashed waist marker
@@ -92,7 +93,7 @@ Then open the URL shown in your terminal (usually `http://localhost:8501`).
 
 Start with just the basics:
 1. Choose units: **mm** or **inches**
-2. Enter your **strip length** and **end margin**
+2. Enter your **strip length**, **top end margin**, and **bottom end margin**
 3. Enter your **grommet diameter** (the external/outer diameter stamped on the packet)
 4. Set the **number of grommets** you want
 
@@ -124,6 +125,7 @@ Cut along the strip outline and pin to your fabric to transfer the grommet centr
 - The **grommet diameter** is the outer ring, not the hole. Check the packaging — it is usually printed in mm.
 - You can work in inches if preferred; exports always include both **mm and inches** for clarity.
 - If you get a **"Grommets overlap"** warning, either reduce the number of grommets, increase the strip length, or use smaller grommets.
+- Top and bottom end margins can be set independently — useful when the top and bottom of the corset need different seam allowances.
 - For a standard corset, the waist gap is typically **2–4 mm** (noticeably tighter than the regular gap).
 - When printing the PDF, always verify scale with a ruler against the "Total length" dimension printed on the template before cutting.
 

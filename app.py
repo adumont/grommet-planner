@@ -78,7 +78,8 @@ def _letter_landscape_layout(length_mm: float) -> tuple[float, float, float, flo
 
 def build_printable_svg_letter(
     length_mm: float,
-    margin_mm: float,
+    margin_top_mm: float,
+    margin_bottom_mm: float,
     radius_mm: float,
     layout: GrommetLayout,
     use_closer_waist_pair: bool,
@@ -109,8 +110,10 @@ def build_printable_svg_letter(
         f'<rect x="{x_pos(0)}" y="{strip_y}" width="{length_mm * scale}" height="{strip_h}" fill="#ffffff" stroke="#111827" stroke-width="0.6"/>',
         f'<line x1="{x_pos(0)}" y1="{strip_y + strip_h + 6}" x2="{x_pos(length_mm)}" y2="{strip_y + strip_h + 6}" stroke="#111827" stroke-width="0.4"/>',
         f'<text x="{(x_pos(0) + x_pos(length_mm)) / 2}" y="{strip_y + strip_h + 11}" text-anchor="middle" font-size="4.5" fill="#111827">Total length: {fmt_both(length_mm)}</text>',
-        f'<line x1="{x_pos(0)}" y1="{strip_y - 5}" x2="{x_pos(margin_mm)}" y2="{strip_y - 5}" stroke="#0369a1" stroke-width="0.5"/>',
-        f'<line x1="{x_pos(length_mm - margin_mm)}" y1="{strip_y - 5}" x2="{x_pos(length_mm)}" y2="{strip_y - 5}" stroke="#0369a1" stroke-width="0.5"/>',
+        f'<line x1="{x_pos(0)}" y1="{strip_y - 5}" x2="{x_pos(margin_top_mm)}" y2="{strip_y - 5}" stroke="#0369a1" stroke-width="0.5"/>',
+        f'<line x1="{x_pos(length_mm - margin_bottom_mm)}" y1="{strip_y - 5}" x2="{x_pos(length_mm)}" y2="{strip_y - 5}" stroke="#0369a1" stroke-width="0.5"/>',
+        f'<text x="{(x_pos(0) + x_pos(margin_top_mm)) / 2}" y="{strip_y - 7}" text-anchor="middle" font-size="3.5" fill="#0369a1">Top: {fmt_both(margin_top_mm)}</text>',
+        f'<text x="{(x_pos(length_mm - margin_bottom_mm) + x_pos(length_mm)) / 2}" y="{strip_y - 7}" text-anchor="middle" font-size="3.5" fill="#0369a1">Bottom: {fmt_both(margin_bottom_mm)}</text>',
     ]
 
     waist_left = waist_right = None
@@ -191,7 +194,7 @@ def build_printable_svg_letter(
 
     param_y = 130.0
     waist_info = f"  |  Waist at: {fmt_both(layout.waist_position_mm)}  |  Waist edge gap: {fmt_both(waist_edge_gap_mm)}" if use_closer_waist_pair else ""
-    param_line1 = f"Strip length: {fmt_both(length_mm)}   |   Margin: {fmt_both(margin_mm)}   |   Diameter: {fmt_both(radius_mm * 2)}   |   Grommets: {count}"
+    param_line1 = f"Strip length: {fmt_both(length_mm)}   |   Top margin: {fmt_both(margin_top_mm)}   |   Bottom margin: {fmt_both(margin_bottom_mm)}   |   Diameter: {fmt_both(radius_mm * 2)}   |   Grommets: {count}"
     param_line2 = f"Waist pair: {'Yes' + waist_info if use_closer_waist_pair else 'No'}"
     svg.extend([
         f'<rect x="{page_margin}" y="{param_y - 5}" width="{page_w - 2 * page_margin}" height="18" fill="#f8fafc" stroke="#e2e8f0" stroke-width="0.4" rx="1"/>',
@@ -205,7 +208,8 @@ def build_printable_svg_letter(
 
 def build_printable_pdf_letter(
     length_mm: float,
-    margin_mm: float,
+    margin_top_mm: float,
+    margin_bottom_mm: float,
     radius_mm: float,
     layout: GrommetLayout,
     use_closer_waist_pair: bool,
@@ -256,16 +260,16 @@ def build_printable_pdf_letter(
         pdf.drawString(mm_to_pt(page_margin), mm_to_pt(page_h - (strip_y + strip_h + 4)), left_boundary_label)
         pdf.drawRightString(mm_to_pt(page_margin + segment_width), mm_to_pt(page_h - (strip_y + strip_h + 4)), right_boundary_label)
 
-        local_margin_left = margin_mm
-        if segment_start <= local_margin_left <= segment_end:
-            x = x_local(local_margin_left, segment_start)
+        local_margin_top = margin_top_mm
+        if segment_start <= local_margin_top <= segment_end:
+            x = x_local(local_margin_top, segment_start)
             pdf.setDash(1.5, 1.5)
             pdf.line(mm_to_pt(x), mm_to_pt(page_h - (strip_y - 3)), mm_to_pt(x), mm_to_pt(page_h - (strip_y + strip_h + 3)))
             pdf.setDash()
 
-        local_margin_right = length_mm - margin_mm
-        if segment_start <= local_margin_right <= segment_end:
-            x = x_local(local_margin_right, segment_start)
+        local_margin_bottom = length_mm - margin_bottom_mm
+        if segment_start <= local_margin_bottom <= segment_end:
+            x = x_local(local_margin_bottom, segment_start)
             pdf.setDash(1.5, 1.5)
             pdf.line(mm_to_pt(x), mm_to_pt(page_h - (strip_y - 3)), mm_to_pt(x), mm_to_pt(page_h - (strip_y + strip_h + 3)))
             pdf.setDash()
@@ -298,7 +302,7 @@ def build_printable_pdf_letter(
             pdf.drawString(mm_to_pt(page_margin + segment_width - 32), mm_to_pt(page_h - (strip_y + strip_h + 12)), "Join next page here")
 
         pdf.setFont("Helvetica", 6)
-        pdf.drawString(mm_to_pt(10), mm_to_pt(page_h - (strip_y + strip_h + 14)), f"Total length: {fmt_both(length_mm)}   Margin: {fmt_both(margin_mm)}   Diameter: {fmt_both(radius_mm * 2)}   Grommets: {count}")
+        pdf.drawString(mm_to_pt(10), mm_to_pt(page_h - (strip_y + strip_h + 14)), f"Total length: {fmt_both(length_mm)}   Top margin: {fmt_both(margin_top_mm)}   Bottom margin: {fmt_both(margin_bottom_mm)}   Diameter: {fmt_both(radius_mm * 2)}   Grommets: {count}")
         waist_info = f"Waist at: {fmt_both(layout.waist_position_mm)}   Waist edge gap: {fmt_both(waist_edge_gap_mm)}" if use_closer_waist_pair else "Waist pair: No"
         pdf.drawString(mm_to_pt(10), mm_to_pt(page_h - (strip_y + strip_h + 19)), waist_info)
         centers_on_page = [f"{idx + 1}:{v:.2f}mm/{v / MM_PER_INCH:.3f}in" for idx, v in enumerate(layout.centers_mm) if segment_start <= v <= segment_end]
@@ -317,7 +321,8 @@ def build_printable_pdf_letter(
 
 def calculate_layout(
     length_mm: float,
-    margin_mm: float,
+    margin_top_mm: float,
+    margin_bottom_mm: float,
     radius_mm: float,
     count: int,
     use_closer_waist_pair: bool,
@@ -325,11 +330,11 @@ def calculate_layout(
     waist_edge_gap_mm: float,
 ) -> GrommetLayout:
     warnings: list[str] = []
-    start_center = margin_mm + radius_mm
-    end_center = length_mm - margin_mm - radius_mm
+    start_center = margin_top_mm + radius_mm
+    end_center = length_mm - margin_bottom_mm - radius_mm
 
     if end_center - start_center < 0:
-        warnings.append("Margins + grommet size exceed strip length. Reduce margin/diameter or increase strip length.")
+        warnings.append("Margins + grommet size exceed strip length. Reduce margins/diameter or increase strip length.")
         return GrommetLayout(
             centers_mm=[],
             center_spacings_mm=[],
@@ -344,7 +349,7 @@ def calculate_layout(
 
     if count == 1:
         center = length_mm / 2
-        if center - radius_mm < margin_mm or center + radius_mm > (length_mm - margin_mm):
+        if center - radius_mm < margin_top_mm or center + radius_mm > (length_mm - margin_bottom_mm):
             warnings.append("Single grommet does not fit inside strip with the selected margins/diameter.")
         center_spacings, edge_gaps, uniform_spacing = _build_spacing_lists([center], radius_mm)
         return GrommetLayout(
@@ -464,7 +469,8 @@ def calculate_layout(
 
 def build_svg(
     length_mm: float,
-    margin_mm: float,
+    margin_top_mm: float,
+    margin_bottom_mm: float,
     radius_mm: float,
     layout: GrommetLayout,
     use_closer_waist_pair: bool,
@@ -503,10 +509,10 @@ def build_svg(
     margin_y = rect_y - 10
     svg.extend(
         [
-            f'<line x1="{x_mm(0)}" y1="{margin_y}" x2="{x_mm(margin_mm)}" y2="{margin_y}" stroke="#0ea5e9" stroke-width="1.5"/>',
-            f'<line x1="{x_mm(length_mm - margin_mm)}" y1="{margin_y}" x2="{x_mm(length_mm)}" y2="{margin_y}" stroke="#0ea5e9" stroke-width="1.5"/>',
-            f'<text x="{(x_mm(0) + x_mm(margin_mm)) / 2}" y="{margin_y - 6}" text-anchor="middle" font-size="12" fill="#0369a1">Margin: {disp(margin_mm):.2f} {display_unit}</text>',
-            f'<text x="{(x_mm(length_mm - margin_mm) + x_mm(length_mm)) / 2}" y="{margin_y - 6}" text-anchor="middle" font-size="12" fill="#0369a1">Margin: {disp(margin_mm):.2f} {display_unit}</text>',
+            f'<line x1="{x_mm(0)}" y1="{margin_y}" x2="{x_mm(margin_top_mm)}" y2="{margin_y}" stroke="#0ea5e9" stroke-width="1.5"/>',
+            f'<line x1="{x_mm(length_mm - margin_bottom_mm)}" y1="{margin_y}" x2="{x_mm(length_mm)}" y2="{margin_y}" stroke="#0ea5e9" stroke-width="1.5"/>',
+            f'<text x="{(x_mm(0) + x_mm(margin_top_mm)) / 2}" y="{margin_y - 6}" text-anchor="middle" font-size="12" fill="#0369a1">Top margin: {disp(margin_top_mm):.2f} {display_unit}</text>',
+            f'<text x="{(x_mm(length_mm - margin_bottom_mm) + x_mm(length_mm)) / 2}" y="{margin_y - 6}" text-anchor="middle" font-size="12" fill="#0369a1">Bottom margin: {disp(margin_bottom_mm):.2f} {display_unit}</text>',
         ]
     )
 
@@ -620,13 +626,21 @@ def main() -> None:
             format="%.2f" if unit_mode else "%.1f",
             help="Total length of the strip where grommets will be placed.",
         )
-        margin_input = st.number_input(
-            f"End margin each side ({unit_label})",
+        margin_top_input = st.number_input(
+            f"Top end margin ({unit_label})",
             min_value=0.0,
             value=round(20.0 / MM_PER_INCH, 2) if unit_mode else 20.0,
             step=0.01 if unit_mode else 0.5,
             format="%.2f" if unit_mode else "%.1f",
-            help="Distance from each strip end to the nearest grommet edge.",
+            help="Distance from the top strip end to the nearest grommet edge.",
+        )
+        margin_bottom_input = st.number_input(
+            f"Bottom end margin ({unit_label})",
+            min_value=0.0,
+            value=round(20.0 / MM_PER_INCH, 2) if unit_mode else 20.0,
+            step=0.01 if unit_mode else 0.5,
+            format="%.2f" if unit_mode else "%.1f",
+            help="Distance from the bottom strip end to the nearest grommet edge.",
         )
         diameter_input = st.number_input(
             f"Grommet external diameter ({unit_label})",
@@ -638,7 +652,8 @@ def main() -> None:
         )
 
         length_mm = length_input * input_to_mm
-        margin_mm = margin_input * input_to_mm
+        margin_top_mm = margin_top_input * input_to_mm
+        margin_bottom_mm = margin_bottom_input * input_to_mm
         diameter_mm = diameter_input * input_to_mm
         radius_mm = diameter_mm / 2
         count = st.number_input(
@@ -675,7 +690,8 @@ def main() -> None:
 
     layout = calculate_layout(
         length_mm=length_mm,
-        margin_mm=margin_mm,
+        margin_top_mm=margin_top_mm,
+        margin_bottom_mm=margin_bottom_mm,
         radius_mm=radius_mm,
         count=count,
         use_closer_waist_pair=use_closer_waist_pair,
@@ -688,7 +704,8 @@ def main() -> None:
         components.html(
             build_svg(
                 length_mm=length_mm,
-                margin_mm=margin_mm,
+                margin_top_mm=margin_top_mm,
+                margin_bottom_mm=margin_bottom_mm,
                 radius_mm=radius_mm,
                 layout=layout,
                 use_closer_waist_pair=use_closer_waist_pair,
@@ -789,7 +806,8 @@ def main() -> None:
     st.subheader("Printable export (Letter)")
     printable_svg, printable_scale, printable_orientation = build_printable_svg_letter(
         length_mm=length_mm,
-        margin_mm=margin_mm,
+        margin_top_mm=margin_top_mm,
+        margin_bottom_mm=margin_bottom_mm,
         radius_mm=radius_mm,
         layout=layout,
         use_closer_waist_pair=use_closer_waist_pair,
@@ -807,7 +825,8 @@ def main() -> None:
     if REPORTLAB_AVAILABLE:
         printable_pdf, pdf_page_count = build_printable_pdf_letter(
             length_mm=length_mm,
-            margin_mm=margin_mm,
+            margin_top_mm=margin_top_mm,
+            margin_bottom_mm=margin_bottom_mm,
             radius_mm=radius_mm,
             layout=layout,
             use_closer_waist_pair=use_closer_waist_pair,
