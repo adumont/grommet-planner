@@ -609,14 +609,75 @@ def main() -> None:
     st.title("Grommet Strip Planner")
     st.write("Plan evenly spaced grommet centers on a strip with end margins.")
 
+    if "length_mm" not in st.session_state:
+        st.session_state.length_mm = 350.0
+    if "margin_top_mm" not in st.session_state:
+        st.session_state.margin_top_mm = 20.0
+    if "margin_bottom_mm" not in st.session_state:
+        st.session_state.margin_bottom_mm = 20.0
+    if "diameter_mm" not in st.session_state:
+        st.session_state.diameter_mm = 10.0
+    if "waist_position_mm" not in st.session_state:
+        st.session_state.waist_position_mm = st.session_state.length_mm / 2
+    if "waist_edge_gap_mm" not in st.session_state:
+        st.session_state.waist_edge_gap_mm = 17.0
+    if "grommet_count" not in st.session_state:
+        st.session_state.grommet_count = 6
+    if "use_closer_waist_pair" not in st.session_state:
+        st.session_state.use_closer_waist_pair = False
+    if "unit_mode" not in st.session_state:
+        st.session_state.unit_mode = False
+    if "_prev_unit_mode" not in st.session_state:
+        st.session_state._prev_unit_mode = st.session_state.unit_mode
+
+    def _sync_display_from_mm() -> None:
+        factor = 1 / MM_PER_INCH if st.session_state.unit_mode else 1.0
+        st.session_state.length_display = st.session_state.length_mm * factor
+        st.session_state.margin_top_display = st.session_state.margin_top_mm * factor
+        st.session_state.margin_bottom_display = st.session_state.margin_bottom_mm * factor
+        st.session_state.diameter_display = st.session_state.diameter_mm * factor
+        st.session_state.waist_position_display = st.session_state.waist_position_mm * factor
+        st.session_state.waist_edge_gap_display = st.session_state.waist_edge_gap_mm * factor
+
+    if "length_display" not in st.session_state:
+        _sync_display_from_mm()
+
+    def _display_to_mm_factor() -> float:
+        return MM_PER_INCH if st.session_state.unit_mode else 1.0
+
+    def _update_length_mm() -> None:
+        st.session_state.length_mm = st.session_state.length_display * _display_to_mm_factor()
+        st.session_state.waist_position_mm = min(max(0.0, st.session_state.waist_position_mm), st.session_state.length_mm)
+        st.session_state.waist_position_display = st.session_state.waist_position_mm / _display_to_mm_factor()
+
+    def _update_margin_top_mm() -> None:
+        st.session_state.margin_top_mm = st.session_state.margin_top_display * _display_to_mm_factor()
+
+    def _update_margin_bottom_mm() -> None:
+        st.session_state.margin_bottom_mm = st.session_state.margin_bottom_display * _display_to_mm_factor()
+
+    def _update_diameter_mm() -> None:
+        st.session_state.diameter_mm = st.session_state.diameter_display * _display_to_mm_factor()
+
+    def _update_waist_position_mm() -> None:
+        st.session_state.waist_position_mm = st.session_state.waist_position_display * _display_to_mm_factor()
+
+    def _update_waist_edge_gap_mm() -> None:
+        st.session_state.waist_edge_gap_mm = st.session_state.waist_edge_gap_display * _display_to_mm_factor()
+
     left, right = st.columns([1, 2], gap="large")
 
     with left:
         unit_mode = st.toggle(
             "Use imperial units (inches)",
-            value=False,
+            key="unit_mode",
             help="Switch between millimetres and inches for all inputs and displayed values.",
         )
+
+        if unit_mode != st.session_state._prev_unit_mode:
+            _sync_display_from_mm()
+            st.session_state._prev_unit_mode = unit_mode
+
         unit_label = "in" if unit_mode else "mm"
         input_to_mm = MM_PER_INCH if unit_mode else 1.0
         mm_to_output = 1 / MM_PER_INCH if unit_mode else 1.0
@@ -624,33 +685,37 @@ def main() -> None:
         length_input = st.number_input(
             f"Strip length ({unit_label})",
             min_value=0.1 if unit_mode else 1.0,
-            value=round(350.0 / MM_PER_INCH, 2) if unit_mode else 350.0,
             step=0.01 if unit_mode else 1.0,
             format="%.2f" if unit_mode else "%.1f",
+            key="length_display",
+            on_change=_update_length_mm,
             help="Total length of the strip where grommets will be placed.",
         )
         margin_top_input = st.number_input(
             f"Top end margin ({unit_label})",
             min_value=0.0,
-            value=round(20.0 / MM_PER_INCH, 2) if unit_mode else 20.0,
             step=0.01 if unit_mode else 0.5,
             format="%.2f" if unit_mode else "%.1f",
+            key="margin_top_display",
+            on_change=_update_margin_top_mm,
             help="Distance from the top strip end to the nearest grommet edge.",
         )
         margin_bottom_input = st.number_input(
             f"Bottom end margin ({unit_label})",
             min_value=0.0,
-            value=round(20.0 / MM_PER_INCH, 2) if unit_mode else 20.0,
             step=0.01 if unit_mode else 0.5,
             format="%.2f" if unit_mode else "%.1f",
+            key="margin_bottom_display",
+            on_change=_update_margin_bottom_mm,
             help="Distance from the bottom strip end to the nearest grommet edge.",
         )
         diameter_input = st.number_input(
             f"Grommet external diameter ({unit_label})",
             min_value=0.01 if unit_mode else 1.0,
-            value=round(9.0 / MM_PER_INCH, 2) if unit_mode else 9.0,
             step=0.01 if unit_mode else 1.0,
             format="%.2f" if unit_mode else "%.1f",
+            key="diameter_display",
+            on_change=_update_diameter_mm,
             help="Outside diameter of the grommet ring (not the inner hole).",
         )
 
@@ -662,34 +727,42 @@ def main() -> None:
         count = st.number_input(
             "Number of grommets",
             min_value=1,
-            value=6,
             step=1,
+            key="grommet_count",
             help="Total number of grommets along the strip.",
         )
-        waist_default = length_input / 2
         waist_position_mm = st.number_input(
             f"Waist position from strip start ({unit_label})",
             min_value=0.0,
             max_value=float(length_input),
-            value=float(waist_default),
             step=0.01 if unit_mode else 0.5,
             format="%.2f" if unit_mode else "%.1f",
+            key="waist_position_display",
+            on_change=_update_waist_position_mm,
             help="Target waist location measured from the strip start.",
         ) * input_to_mm
         use_closer_waist_pair = st.checkbox(
             "Use closer waist grommet pair",
-            value=False,
+            key="use_closer_waist_pair",
             help="Places the two waist grommets closer together than the standard spacing.",
         )
         waist_edge_gap_mm = st.number_input(
             f"Waist pair edge gap ({unit_label})",
             min_value=0.0,
-            value=round(17.0 / MM_PER_INCH, 2) if unit_mode else 17.0,
             step=0.01 if unit_mode else 0.5,
             format="%.2f" if unit_mode else "%.1f",
+            key="waist_edge_gap_display",
+            on_change=_update_waist_edge_gap_mm,
             disabled=not use_closer_waist_pair,
             help="Distance between the two waist grommets measured edge-to-edge, centered at the waist.",
         ) * input_to_mm
+
+        st.session_state.length_mm = length_mm
+        st.session_state.margin_top_mm = margin_top_mm
+        st.session_state.margin_bottom_mm = margin_bottom_mm
+        st.session_state.diameter_mm = diameter_mm
+        st.session_state.waist_position_mm = waist_position_mm
+        st.session_state.waist_edge_gap_mm = waist_edge_gap_mm
 
     layout = calculate_layout(
         length_mm=length_mm,
