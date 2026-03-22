@@ -769,10 +769,10 @@ def main() -> None:
         st.session_state.waist_count = 2
     if "planner_mode" not in st.session_state:
         st.session_state.planner_mode = MODE_GROMMETS
-    if "buttonhole_flip_90" not in st.session_state:
-        st.session_state.buttonhole_flip_90 = False
-    if "buttonhole_flip_last_90" not in st.session_state:
-        st.session_state.buttonhole_flip_last_90 = True
+    if "_flip_all_90" not in st.session_state:
+        st.session_state._flip_all_90 = False
+    if "_flip_last_90" not in st.session_state:
+        st.session_state._flip_last_90 = True
     if "bust_count" not in st.session_state:
         st.session_state.bust_count = 1
     if "unit_mode" not in st.session_state:
@@ -820,6 +820,8 @@ def main() -> None:
         st.session_state.waist_edge_gap_mm = st.session_state.waist_edge_gap_display * _display_to_mm_factor()
 
     left, right = st.columns([1, 2], gap="large")
+    buttonhole_flip_90_ui = st.session_state._flip_all_90
+    buttonhole_flip_last_90_ui = st.session_state._flip_last_90
 
     with left:
         planner_mode = st.radio(
@@ -925,19 +927,19 @@ def main() -> None:
                 waist_count = int(waist_count) + 1
                 st.session_state.bust_count = int(waist_count)
                 st.info(f"Bust buttonholes count must be odd. Using {int(waist_count)}.")
-            st.checkbox(
+            buttonhole_flip_90_ui = st.checkbox(
                 "Flip buttonholes 90°",
-                key="buttonhole_flip_90",
+                value=st.session_state._flip_all_90,
                 help="Rotate buttonhole rectangles by 90° in the diagram and exports.",
             )
-            if not st.session_state.buttonhole_flip_90:
-                st.checkbox(
-                    "Flip last button 90°",
-                    key="buttonhole_flip_last_90",
-                    help="Rotate only the last buttonhole by 90° in the diagram and exports.",
-                )
-            else:
-                st.session_state.buttonhole_flip_last_90 = False
+            st.session_state._flip_all_90 = buttonhole_flip_90_ui
+            buttonhole_flip_last_90_ui = st.checkbox(
+                "Flip last button 90°",
+                value=st.session_state._flip_last_90,
+                disabled=buttonhole_flip_90_ui,
+                help="Rotate only the last buttonhole by 90° in the diagram and exports.",
+            )
+            st.session_state._flip_last_90 = buttonhole_flip_last_90_ui
         else:
             waist_count = st.number_input(
                 "Number of waist grommets",
@@ -948,8 +950,6 @@ def main() -> None:
                 disabled=not use_closer_waist_pair,
                 help="How many grommets to place at the waist, evenly spaced and centered on the waist position.",
             )
-            st.session_state.buttonhole_flip_90 = False
-            st.session_state.buttonhole_flip_last_90 = True
         waist_edge_gap_mm = st.number_input(
             f"{terms['line']} cluster edge gap ({unit_label})",
             min_value=0.0,
@@ -969,14 +969,21 @@ def main() -> None:
         st.session_state.waist_edge_gap_mm = waist_edge_gap_mm
         st.session_state.grommet_count = int(count)
 
+    effective_buttonhole_flip_90 = planner_mode == MODE_BUTTONHOLES and buttonhole_flip_90_ui
+    effective_buttonhole_flip_last_90 = (
+        planner_mode == MODE_BUTTONHOLES
+        and (not buttonhole_flip_90_ui)
+        and buttonhole_flip_last_90_ui
+    )
+
     feature_half_sizes_mm = [radius_mm] * int(count)
     if planner_mode == MODE_BUTTONHOLES:
         for idx in range(int(count)):
             is_flipped = _buttonhole_is_flipped(
                 index=idx,
                 total=int(count),
-                flip_all_90=st.session_state.buttonhole_flip_90,
-                flip_last_90=(st.session_state.buttonhole_flip_last_90 and (not st.session_state.buttonhole_flip_90)),
+                flip_all_90=effective_buttonhole_flip_90,
+                flip_last_90=effective_buttonhole_flip_last_90,
             )
             feature_half_sizes_mm[idx] = _buttonhole_half_extent_mm(2 * radius_mm, is_flipped)
 
@@ -1009,8 +1016,8 @@ def main() -> None:
                 display_factor=mm_to_output,
                 planner_mode=planner_mode,
                 line_label=terms["line"],
-                buttonhole_flip_90=st.session_state.buttonhole_flip_90,
-                buttonhole_flip_last_90=st.session_state.buttonhole_flip_last_90,
+                buttonhole_flip_90=effective_buttonhole_flip_90,
+                buttonhole_flip_last_90=effective_buttonhole_flip_last_90,
             ),
             height=400,
         )
@@ -1115,8 +1122,8 @@ def main() -> None:
         planner_mode=planner_mode,
         item_plural=terms["item_plural"],
         line_label=terms["line"],
-        buttonhole_flip_90=st.session_state.buttonhole_flip_90,
-        buttonhole_flip_last_90=st.session_state.buttonhole_flip_last_90,
+        buttonhole_flip_90=effective_buttonhole_flip_90,
+        buttonhole_flip_last_90=effective_buttonhole_flip_last_90,
     )
     st.download_button(
         "Download SVG (100% scale)",
@@ -1139,8 +1146,8 @@ def main() -> None:
             planner_mode=planner_mode,
             item_plural=terms["item_plural"],
             line_label=terms["line"],
-            buttonhole_flip_90=st.session_state.buttonhole_flip_90,
-            buttonhole_flip_last_90=st.session_state.buttonhole_flip_last_90,
+            buttonhole_flip_90=effective_buttonhole_flip_90,
+            buttonhole_flip_last_90=effective_buttonhole_flip_last_90,
         )
         st.download_button(
             "Download PDF Letter (100% scale, multi-page)",
