@@ -2,6 +2,8 @@
 
 A small web app that solves a very specific sewing problem: **how to evenly place grommets on a corset lacing strip** so the spacing looks clean and professional, and the waist grommets land exactly where you need them.
 
+**Use the app: [grommet-planner.streamlit.app](https://grommet-planner.streamlit.app/)**
+
 ---
 
 ## The Problem It Solves
