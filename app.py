@@ -610,7 +610,7 @@ def main() -> None:
     st.write("Plan evenly spaced grommet centers on a strip with end margins.")
 
     if "length_mm" not in st.session_state:
-        st.session_state.length_mm = 350.0
+        st.session_state.length_mm = 330.0
     if "margin_top_mm" not in st.session_state:
         st.session_state.margin_top_mm = 20.0
     if "margin_bottom_mm" not in st.session_state:
@@ -618,13 +618,13 @@ def main() -> None:
     if "diameter_mm" not in st.session_state:
         st.session_state.diameter_mm = 10.0
     if "waist_position_mm" not in st.session_state:
-        st.session_state.waist_position_mm = st.session_state.length_mm / 2
+        st.session_state.waist_position_mm = 170.0
     if "waist_edge_gap_mm" not in st.session_state:
-        st.session_state.waist_edge_gap_mm = 17.0
+        st.session_state.waist_edge_gap_mm = 16.0
     if "grommet_count" not in st.session_state:
-        st.session_state.grommet_count = 6
+        st.session_state.grommet_count = 10
     if "use_closer_waist_pair" not in st.session_state:
-        st.session_state.use_closer_waist_pair = False
+        st.session_state.use_closer_waist_pair = True
     if "unit_mode" not in st.session_state:
         st.session_state.unit_mode = False
     if "_prev_unit_mode" not in st.session_state:
@@ -732,14 +732,14 @@ def main() -> None:
             help="Total number of grommets along the strip.",
         )
         waist_position_mm = st.number_input(
-            f"Waist position from strip start ({unit_label})",
+            f"Waist position from top ({unit_label})",
             min_value=0.0,
             max_value=float(length_input),
             step=0.01 if unit_mode else 0.5,
             format="%.2f" if unit_mode else "%.1f",
             key="waist_position_display",
             on_change=_update_waist_position_mm,
-            help="Target waist location measured from the strip start.",
+            help="Target waist location measured from the top of the strip.",
         ) * input_to_mm
         use_closer_waist_pair = st.checkbox(
             "Use closer waist grommet pair",
