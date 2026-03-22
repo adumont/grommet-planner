@@ -75,21 +75,9 @@ Both exports embed all your input parameters and show measurements in **both mm 
 
 ## How to Use
 
-### 1. Install dependencies
+Go to https://github.com/adumont/grommet-planner:
 
-```bash
-pip install -r requirements.txt
-```
-
-### 2. Run the app
-
-```bash
-streamlit run app.py
-```
-
-Then open the URL shown in your terminal (usually `http://localhost:8501`).
-
-### 3. Enter your measurements
+### 1. Enter your measurements
 
 Start with just the basics:
 1. Choose units: **mm** or **inches**
@@ -99,7 +87,7 @@ Start with just the basics:
 
 The diagram updates instantly as you type.
 
-### 4. Optional: add the waist pair
+### 2. Optional: add the waist pair
 
 1. Enter the **waist position** — measure from the top of your strip to where the waist sits on the body
 2. Tick **Use closer waist grommet pair**
@@ -107,13 +95,13 @@ The diagram updates instantly as you type.
 
 The app will automatically distribute the remaining grommets proportionally above and below the waist based on available space.
 
-### 5. Check the results
+### 3. Check the results
 
 - Confirm the **edge gaps are positive** (no grommet overlap)
 - Read off the **centre positions** from the table — these are the points you mark on your fabric
 - The spacing should look even in the diagram
 
-### 6. Export a template
+### 4. Export a template
 
 Click **Download PDF Letter** and print at **100% / Actual size** (do **not** use "fit to page").  
 Cut along the strip outline and pin to your fabric to transfer the grommet centre marks.
