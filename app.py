@@ -769,6 +769,8 @@ def main() -> None:
         st.session_state.waist_count = 2
     if "planner_mode" not in st.session_state:
         st.session_state.planner_mode = MODE_GROMMETS
+    if "_prev_planner_mode" not in st.session_state:
+        st.session_state._prev_planner_mode = st.session_state.planner_mode
     if "_flip_all_90" not in st.session_state:
         st.session_state._flip_all_90 = False
     if "_flip_last_90" not in st.session_state:
@@ -831,6 +833,14 @@ def main() -> None:
             horizontal=True,
         )
         terms = _planner_terms(planner_mode)
+
+        if planner_mode != st.session_state._prev_planner_mode:
+            if planner_mode == MODE_BUTTONHOLES:
+                st.session_state.waist_position_mm = 130.0
+            else:
+                st.session_state.waist_position_mm = 170.0
+            _sync_display_from_mm()
+            st.session_state._prev_planner_mode = planner_mode
 
         unit_mode = st.toggle(
             "Use imperial units (inches)",
