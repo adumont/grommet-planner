@@ -745,7 +745,7 @@ def build_svg(
 
 
 def main() -> None:
-    st.set_page_config(page_title="Strip Planner", layout="wide")
+    st.set_page_config(page_title="Grommets and Buttonholes Planner", layout="wide")
 
     if "length_mm" not in st.session_state:
         st.session_state.length_mm = 330.0

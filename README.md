@@ -1,4 +1,4 @@
-# Strip Planner
+# Grommets and Buttonholes Planner
 
 A small web app for two sewing layout problems:
 - **Grommet mode**: evenly place grommets on a corset lacing strip
