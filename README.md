@@ -14,7 +14,7 @@ When lacing a corset, grommets are set into a fabric strip along the centre-back
 - A margin at each end (so grommets don't tear out)
 - The physical size of each grommet (its external diameter)
 - An even gap between grommets so the lacing looks uniform
-- A **closer pair at the waist** — a traditional corset feature where the two grommets at the narrowest point are placed closer together so the lacing cinches more tightly there
+- A **closer waist group** — a traditional corset feature where the grommets at the narrowest point are placed closer together so the lacing cinches more tightly there
 
 This app does all the maths instantly and shows you exactly where to mark each grommet centre on your fabric, and you can even print the results.
 
@@ -39,8 +39,9 @@ This app does all the maths instantly and shows you exactly where to mark each g
 | **Grommet external diameter (mm)** | The outer diameter of your grommets |
 | **Number of grommets** | How many grommets to place |
 | **Waist position from strip start (mm)** | Where the waist falls, measured from the top of the strip |
-| **Use closer waist grommet pair** | Enable the corset waist feature |
-| **Waist pair edge gap (mm)** | The edge-to-edge space between the two waist grommets (only when the waist option is on) |
+| **Closer waist grommets** | Enable the corset waist feature |
+| **Number of waist grommets** | How many waist grommets to place (default: 2) |
+| **Waist grommet edge gap (mm)** | The edge-to-edge space between adjacent waist grommets (only when the waist option is on) |
 
 You can switch units with **Use imperial units (inches)**. The app converts automatically and keeps calculations precise internally.
 
@@ -55,13 +56,13 @@ A live SVG diagram in the app shows:
 ### Metrics
 Key measurements are displayed in a summary row:
 - Number of grommets, first centre, last centre, waist position
-- **Center spacing** broken down into Top (above waist) / Upper-Lower waist grommet / Bottom (below waist)
+- **Center spacing** broken down into Top (above waist) / Waist grommet spacing / Bottom (below waist)
 - **Edge-to-edge gap** broken down the same way
 
 ### Grommet centre positions table
 A precise table listing every grommet with:
 - **Position** from the strip start (in mm or inches, based on selected unit)
-- **Type**: Above waist / Upper waist grommet / Lower waist grommet / Below waist / Standard
+- **Type**: Above waist / Waist grommet 1..N / Below waist / Standard
 - **Centre spacing to next** grommet
 - **Edge gap to next** grommet
 
@@ -87,11 +88,12 @@ Start with just the basics:
 
 The diagram updates instantly as you type.
 
-### 2. Optional: add the waist pair
+### 2. Optional: add waist grommets
 
 1. Enter the **waist position** — measure from the top of your strip to where the waist sits on the body
-2. Tick **Use closer waist grommet pair**
-3. Adjust the **waist pair edge gap** — typically 2–5 mm, narrower than your standard gap
+2. Tick **Closer waist grommets**
+3. Set **number of waist grommets** (default is 2)
+4. Adjust the **waist grommet edge gap** — typically 2–5 mm, narrower than your standard gap
 
 The app will automatically distribute the remaining grommets proportionally above and below the waist based on available space.
 
