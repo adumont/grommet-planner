@@ -4,7 +4,7 @@ A small web app for two sewing layout problems:
 - **Grommet mode**: evenly place grommets on a corset lacing strip
 - **Buttonhole mode**: evenly place buttonholes on a shirt/placket strip, with optional bust-focused placement for women's shirts
 
-**Use the app: [grommet-planner.streamlit.app](https://grommet-planner.streamlit.app/)**
+**Use the app: [Grommets and Buttonholes Planner](https://grommet-planner.streamlit.app/)**
 
 ---
 
@@ -92,45 +92,59 @@ Both exports embed all your input parameters and show measurements in **both mm 
 
 ## How to Use
 
-Go to https://github.com/adumont/grommet-planner:
+Open the [Grommets and Buttonholes Planner](https://grommet-planner.streamlit.app/) web app and select your **Planner mode** at the top of the left panel: `Grommet mode` or `Buttonhole mode`.
 
-### 1. Enter your measurements
+### Grommet mode (corset lacing strips)
 
-Start with just the basics:
 1. Choose units: **mm** or **inches**
 2. Enter your **strip length**, **top end margin**, and **bottom end margin**
-3. Enter your **grommet diameter** (the external/outer diameter stamped on the packet)
+3. Enter your **grommet external diameter** (the outer ring size printed on the packet)
 4. Set the **number of grommets** you want
 
 The diagram updates instantly as you type.
 
-### 2. Optional: add a closer line cluster
+#### Optional: closer waist grommets
 
-1. Enter the target line position:
-	- **Waist** in Grommet mode
-	- **Bust** in Buttonhole mode
-2. Tick **Closer line features**
-3. Set cluster count:
-	- Grommets: waist count
-	- Buttonholes: odd bust count (default 1)
-4. Adjust the cluster **edge gap**
+1. Enter the **waist position** — measure from the top of your strip to where the waist sits on the body
+2. Tick **Closer waist grommets**
+3. Set the **number of waist grommets** (default 2)
+4. Adjust the **waist cluster edge gap** — typically it will be narrower than the standard gap
 
-Buttonhole mode also supports orientation controls:
-- **Flip buttonholes 90°** (all)
-- **Flip last button 90°** (last only, default on when full flip is off)
+The app distributes the remaining grommets proportionally above and below the waist.
 
-The app distributes remaining features proportionally above and below the target line based on available space.
+### Buttonhole mode (shirt plackets)
 
-### 3. Check the results
+1. Choose units: **mm** or **inches**
+2. Enter your **strip length**, **top end margin**, and **bottom end margin**
+3. Enter the **buttonhole length** (the slit length along the strip)
+4. Set the **number of buttonholes** you want
 
-- Confirm the **edge gaps are positive** (no grommet overlap)
+#### Optional: closer bust buttonholes
+
+1. Enter the **bust position** — measured from the top of the strip (defaults to 130 mm)
+2. Tick **Closer bust buttonholes**
+3. Set the **number of bust buttonholes** — must be an odd number (default 1)
+4. Adjust the **bust cluster edge gap** if you want to have the bust buttons to be closer.
+
+The app distributes the remaining buttonholes proportionally above and below the bust line.
+
+#### Buttonhole orientation
+
+- **Flip buttonholes 90°** — rotates every buttonhole rectangle
+- **Flip last button 90°** — rotates only the last buttonhole (checked by default); useful for the bottom button near the hem. This option is disabled when the full flip is active.
+
+Edge-gap calculations automatically account for mixed orientations while keeping centre spacing unchanged.
+
+### Check the results
+
+- Confirm the **edge gaps are positive** (no overlap)
 - Read off the **centre positions** from the table — these are the points you mark on your fabric
 - The spacing should look even in the diagram
 
-### 4. Export a template
+### Export a template
 
-Click **Download PDF Letter** and print at **100% / Actual size** (do **not** use "fit to page").  
-Cut along the strip outline and pin to your fabric to transfer the grommet centre marks.
+Click **Download PDF Letter** and print at **100% / Actual size** (do **not** use "fit to page").
+Cut along the strip outline and pin to your fabric to transfer the centre marks.
 
 ---
 
