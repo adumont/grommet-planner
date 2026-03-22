@@ -839,24 +839,53 @@ def build_svg(
 
     standard_pair_index = _find_standard_pair_index(layout, use_closer_waist_pair)
 
+    # Determine the last lower pair (last two grommets after the waist cluster)
+    lower_pair_index: int | None = None
+    if use_closer_waist_pair and layout.waist_pair_indices is not None:
+        last = len(layout.centers_mm) - 1
+        if last > layout.waist_pair_indices[1]:
+            lower_pair_index = last - 1
+
+    upper_label = "Upper center-to-center" if (use_closer_waist_pair and layout.waist_pair_indices is not None) else "Standard center-to-center"
+    upper_gap_label = "Upper edge gap" if (use_closer_waist_pair and layout.waist_pair_indices is not None) else "Standard edge gap"
+
+    y_dim_c2c = rect_y + strip_h_px + 28
+    y_dim_gap = rect_y + strip_h_px + 62
+
     if standard_pair_index is not None:
         c1 = layout.centers_mm[standard_pair_index]
         c2 = layout.centers_mm[standard_pair_index + 1]
         center_to_center = c2 - c1
         standard_edge_gap = center_to_center - (2 * radius_mm)
 
-        y_dim_c2c = rect_y + strip_h_px + 28
-        y_dim_gap = rect_y + strip_h_px + 62
         svg.extend(
             [
                 f'<line x1="{x_mm(c1)}" y1="{y_dim_c2c}" x2="{x_mm(c2)}" y2="{y_dim_c2c}" stroke="#16a34a" stroke-width="1.5"/>',
                 f'<line x1="{x_mm(c1)}" y1="{y_dim_c2c - 5}" x2="{x_mm(c1)}" y2="{y_dim_c2c + 5}" stroke="#16a34a" stroke-width="1"/>',
                 f'<line x1="{x_mm(c2)}" y1="{y_dim_c2c - 5}" x2="{x_mm(c2)}" y2="{y_dim_c2c + 5}" stroke="#16a34a" stroke-width="1"/>',
-                f'<text x="{(x_mm(c1) + x_mm(c2)) / 2}" y="{y_dim_c2c - 6}" text-anchor="middle" font-size="12" fill="#166534">Standard center-to-center: {disp(center_to_center):.2f} {display_unit}</text>',
+                f'<text x="{(x_mm(c1) + x_mm(c2)) / 2}" y="{y_dim_c2c - 6}" text-anchor="middle" font-size="12" fill="#166534">{upper_label}: {disp(center_to_center):.2f} {display_unit}</text>',
                 f'<line x1="{x_mm(c1 + radius_mm)}" y1="{y_dim_gap}" x2="{x_mm(c2 - radius_mm)}" y2="{y_dim_gap}" stroke="#0f766e" stroke-width="1.5"/>',
                 f'<line x1="{x_mm(c1 + radius_mm)}" y1="{y_dim_gap - 5}" x2="{x_mm(c1 + radius_mm)}" y2="{y_dim_gap + 5}" stroke="#0f766e" stroke-width="1"/>',
                 f'<line x1="{x_mm(c2 - radius_mm)}" y1="{y_dim_gap - 5}" x2="{x_mm(c2 - radius_mm)}" y2="{y_dim_gap + 5}" stroke="#0f766e" stroke-width="1"/>',
-                f'<text x="{(x_mm(c1) + x_mm(c2)) / 2}" y="{y_dim_gap - 6}" text-anchor="middle" font-size="12" fill="#0f766e">Standard edge gap: {disp(standard_edge_gap):.2f} {display_unit}</text>',
+                f'<text x="{(x_mm(c1) + x_mm(c2)) / 2}" y="{y_dim_gap - 6}" text-anchor="middle" font-size="12" fill="#0f766e">{upper_gap_label}: {disp(standard_edge_gap):.2f} {display_unit}</text>',
+            ]
+        )
+
+    if lower_pair_index is not None:
+        lc1 = layout.centers_mm[lower_pair_index]
+        lc2 = layout.centers_mm[lower_pair_index + 1]
+        lower_c2c = lc2 - lc1
+        lower_edge_gap = lower_c2c - (2 * radius_mm)
+        svg.extend(
+            [
+                f'<line x1="{x_mm(lc1)}" y1="{y_dim_c2c}" x2="{x_mm(lc2)}" y2="{y_dim_c2c}" stroke="#16a34a" stroke-width="1.5"/>',
+                f'<line x1="{x_mm(lc1)}" y1="{y_dim_c2c - 5}" x2="{x_mm(lc1)}" y2="{y_dim_c2c + 5}" stroke="#16a34a" stroke-width="1"/>',
+                f'<line x1="{x_mm(lc2)}" y1="{y_dim_c2c - 5}" x2="{x_mm(lc2)}" y2="{y_dim_c2c + 5}" stroke="#16a34a" stroke-width="1"/>',
+                f'<text x="{(x_mm(lc1) + x_mm(lc2)) / 2}" y="{y_dim_c2c - 6}" text-anchor="middle" font-size="12" fill="#166534">Lower center-to-center: {disp(lower_c2c):.2f} {display_unit}</text>',
+                f'<line x1="{x_mm(lc1 + radius_mm)}" y1="{y_dim_gap}" x2="{x_mm(lc2 - radius_mm)}" y2="{y_dim_gap}" stroke="#0f766e" stroke-width="1.5"/>',
+                f'<line x1="{x_mm(lc1 + radius_mm)}" y1="{y_dim_gap - 5}" x2="{x_mm(lc1 + radius_mm)}" y2="{y_dim_gap + 5}" stroke="#0f766e" stroke-width="1"/>',
+                f'<line x1="{x_mm(lc2 - radius_mm)}" y1="{y_dim_gap - 5}" x2="{x_mm(lc2 - radius_mm)}" y2="{y_dim_gap + 5}" stroke="#0f766e" stroke-width="1"/>',
+                f'<text x="{(x_mm(lc1) + x_mm(lc2)) / 2}" y="{y_dim_gap - 6}" text-anchor="middle" font-size="12" fill="#0f766e">Lower edge gap: {disp(lower_edge_gap):.2f} {display_unit}</text>',
             ]
         )
 
