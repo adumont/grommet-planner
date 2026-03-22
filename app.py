@@ -25,6 +25,7 @@ except Exception:
 
 
 MM_PER_INCH = 25.4
+APP_URL = "https://grommet-planner.streamlit.app/"
 
 
 @dataclass
@@ -197,9 +198,10 @@ def build_printable_svg_letter(
     param_line1 = f"Strip length: {fmt_both(length_mm)}   |   Top margin: {fmt_both(margin_top_mm)}   |   Bottom margin: {fmt_both(margin_bottom_mm)}   |   Diameter: {fmt_both(radius_mm * 2)}   |   Grommets: {count}"
     param_line2 = f"Waist pair: {'Yes' + waist_info if use_closer_waist_pair else 'No'}"
     svg.extend([
-        f'<rect x="{page_margin}" y="{param_y - 5}" width="{page_w - 2 * page_margin}" height="18" fill="#f8fafc" stroke="#e2e8f0" stroke-width="0.4" rx="1"/>',
+        f'<rect x="{page_margin}" y="{param_y - 5}" width="{page_w - 2 * page_margin}" height="26" fill="#f8fafc" stroke="#e2e8f0" stroke-width="0.4" rx="1"/>',
         f'<text x="{page_margin + 3}" y="{param_y + 3}" font-size="4.8" fill="#334155">{param_line1}</text>',
         f'<text x="{page_margin + 3}" y="{param_y + 10}" font-size="4.8" fill="#334155">{param_line2}</text>',
+        f'<text x="{page_margin + 3}" y="{param_y + 18}" font-size="4.3" fill="#64748b">{APP_URL}</text>',
     ])
 
     svg.append("</svg>")
@@ -305,11 +307,12 @@ def build_printable_pdf_letter(
         pdf.drawString(mm_to_pt(10), mm_to_pt(page_h - (strip_y + strip_h + 14)), f"Total length: {fmt_both(length_mm)}   Top margin: {fmt_both(margin_top_mm)}   Bottom margin: {fmt_both(margin_bottom_mm)}   Diameter: {fmt_both(radius_mm * 2)}   Grommets: {count}")
         waist_info = f"Waist at: {fmt_both(layout.waist_position_mm)}   Waist edge gap: {fmt_both(waist_edge_gap_mm)}" if use_closer_waist_pair else "Waist pair: No"
         pdf.drawString(mm_to_pt(10), mm_to_pt(page_h - (strip_y + strip_h + 19)), waist_info)
+        pdf.drawString(mm_to_pt(10), mm_to_pt(page_h - (strip_y + strip_h + 24)), APP_URL)
         centers_on_page = [f"{idx + 1}:{v:.2f}mm/{v / MM_PER_INCH:.3f}in" for idx, v in enumerate(layout.centers_mm) if segment_start <= v <= segment_end]
         if centers_on_page:
             pdf.drawString(
                 mm_to_pt(10),
-                mm_to_pt(page_h - (strip_y + strip_h + 24)),
+                mm_to_pt(page_h - (strip_y + strip_h + 29)),
                 f"Centers on this page (mm/in): {', '.join(centers_on_page[:10])}",
             )
 
