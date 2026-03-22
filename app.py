@@ -748,7 +748,7 @@ def main() -> None:
     st.set_page_config(
         page_title="Grommets and Buttonholes Planner",
         layout="wide",
-        menu_items={"Get help": "https://github.com/adumont/grommet-planner",
+        menu_items={"Get help": "https://github.com/adumont/grommet-planner?tab=readme-ov-file#grommets-and-buttonholes-planner",
                     "About": "Grommets and Buttonholes Planner - plan your grommet/buttonhole layout and print templates for accurate placement when sewing. Contact me at [@sewing.alex](https://www.instagram.com/sewing.alex)"
                     },
     )
@@ -1179,7 +1179,7 @@ def main() -> None:
     st.caption(f"SVG export mode: {printable_orientation}. Drawing scale: {printable_scale * 100:.2f}%.")
 
     st.subheader("Help")
-    st.markdown("- README: https://github.com/adumont/grommet-planner")
+    st.markdown("- Documentation and source code: https://github.com/adumont/grommet-planner")
     st.markdown("- Suggestions or feedback: [@sewing.alex](https://www.instagram.com/sewing.alex)")
     st.caption("License: GPL-3.0-only. This project is free to use.")
 
