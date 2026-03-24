@@ -1061,7 +1061,7 @@ def main() -> None:
             if bottom_margin_mm is None:
                 st.session_state._auto_bottom_margin_feedback = (
                     "warning",
-                    "No exact spacing solution found. Try one less buttonhole or move the bust position and try again.",
+                    "No exact spacing solution found. Try with a different number of buttonholes.",
                 )
                 st.session_state._auto_bottom_margin_feedback_signature = (
                     _auto_bottom_margin_feedback_signature()

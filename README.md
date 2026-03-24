@@ -130,7 +130,7 @@ The app distributes the remaining grommets proportionally above and below the wa
 	- The first buttonhole stays at the top margin
 	- One buttonhole is exactly on the bust line
 	- The last buttonhole that still fits determines the bottom margin automatically
-	- If no exact solution exists, the app tells you to try one less buttonhole or move the bust line and try again
+	- If no exact solution exists, the app tells you to try with a different number of buttonholes
 
 The app distributes the remaining buttonholes proportionally above and below the bust line.
 
@@ -164,7 +164,7 @@ Cut along the strip outline and pin to your fabric to transfer the centre marks.
 - For a standard corset, the waist gap is typically **2–4 mm** (noticeably tighter than the regular gap).
 - In Buttonhole mode, flipping only the last buttonhole can help visual balance near the hem while preserving centre spacing.
 - The bust-alignment auto-calculate button is only available in **Buttonhole mode** with **Closer bust buttonholes** enabled.
-- If bust-alignment auto-calculate reports no exact solution, reduce the total buttonhole count by one or move the bust position slightly.
+- If bust-alignment auto-calculate reports no exact solution, try with a different number of buttonholes.
 - When printing the PDF, always verify scale with a ruler against the "Total length" dimension printed on the template before cutting.
 
 ---
