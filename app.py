@@ -1155,17 +1155,15 @@ def main() -> None:
                 )
             buttonhole_flip_90_ui = st.checkbox(
                 "Flip buttonholes 90°",
-                value=st.session_state._flip_all_90,
+                key="_flip_all_90",
                 help="Rotate buttonhole rectangles by 90° in the diagram and exports.",
             )
-            st.session_state._flip_all_90 = buttonhole_flip_90_ui
             buttonhole_flip_last_90_ui = st.checkbox(
                 "Flip last button 90°",
-                value=st.session_state._flip_last_90,
+                key="_flip_last_90",
                 disabled=buttonhole_flip_90_ui,
                 help="Rotate only the last buttonhole by 90° in the diagram and exports.",
             )
-            st.session_state._flip_last_90 = buttonhole_flip_last_90_ui
         else:
             waist_count = st.number_input(
                 "Number of waist grommets",
