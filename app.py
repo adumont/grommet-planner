@@ -1071,10 +1071,20 @@ def main() -> None:
                 st.session_state.bust_count = 1
                 st.session_state.margin_bottom_mm = bottom_margin_mm
                 output_factor = 1 / MM_PER_INCH if st.session_state.unit_mode else 1.0
+                output_unit = "in" if st.session_state.unit_mode else "mm"
                 st.session_state.margin_bottom_display = bottom_margin_mm * output_factor
+                start_center_mm = float(st.session_state.margin_top_mm) + (
+                    float(st.session_state.diameter_mm) / 2
+                )
+                bust_position_mm = float(st.session_state.waist_position_mm)
+                center_spacing_mm = (
+                    (bust_position_mm - start_center_mm) / bust_index_value
+                    if bust_index_value > 0
+                    else 0.0
+                )
                 st.session_state._auto_bottom_margin_feedback = (
                     "success",
-                    f"Bottom margin set to {bottom_margin_mm * output_factor:.2f} {'in' if st.session_state.unit_mode else 'mm'}. Bust buttonholes reset to 1; button #{bust_index_value + 1} is exactly at the bust.",
+                    f"Bottom margin set to {bottom_margin_mm * output_factor:.2f} {output_unit}. Bust buttonholes reset to 1; button #{bust_index_value + 1} is exactly at the bust. All buttonholes are evenly spaced with a {center_spacing_mm * output_factor:.2f} {output_unit} center-to-center gap.",
                 )
                 st.session_state._auto_bottom_margin_feedback_signature = (
                     _auto_bottom_margin_feedback_signature()
