@@ -1022,6 +1022,26 @@ def main() -> None:
         st.session_state._pending_auto_bottom_margin_calc = False
     if "_auto_bottom_margin_feedback" not in st.session_state:
         st.session_state._auto_bottom_margin_feedback = None
+    if "_auto_bottom_margin_feedback_signature" not in st.session_state:
+        st.session_state._auto_bottom_margin_feedback_signature = None
+
+    def _auto_bottom_margin_feedback_signature() -> tuple[Any, ...]:
+        return (
+            st.session_state.planner_mode,
+            st.session_state.unit_mode,
+            float(st.session_state.length_mm),
+            float(st.session_state.margin_top_mm),
+            float(st.session_state.margin_bottom_mm),
+            float(st.session_state.diameter_mm),
+            float(st.session_state.waist_position_mm),
+            float(st.session_state.waist_edge_gap_mm),
+            int(st.session_state.item_count),
+            bool(st.session_state.use_closer_waist_pair),
+            int(st.session_state.bust_count),
+            int(st.session_state.waist_count),
+            bool(st.session_state._flip_all_90),
+            bool(st.session_state._flip_last_90),
+        )
 
     terms = _planner_terms(st.session_state.planner_mode)
 
@@ -1043,6 +1063,9 @@ def main() -> None:
                     "warning",
                     "No exact spacing solution found. Try one less buttonhole or move the bust position and try again.",
                 )
+                st.session_state._auto_bottom_margin_feedback_signature = (
+                    _auto_bottom_margin_feedback_signature()
+                )
             else:
                 bust_index_value = bust_index if bust_index is not None else 0
                 st.session_state.bust_count = 1
@@ -1053,8 +1076,12 @@ def main() -> None:
                     "success",
                     f"Bottom margin set to {bottom_margin_mm * output_factor:.2f} {'in' if st.session_state.unit_mode else 'mm'}. Bust buttonholes reset to 1; button #{bust_index_value + 1} is exactly at the bust.",
                 )
+                st.session_state._auto_bottom_margin_feedback_signature = (
+                    _auto_bottom_margin_feedback_signature()
+                )
         else:
             st.session_state._auto_bottom_margin_feedback = None
+            st.session_state._auto_bottom_margin_feedback_signature = None
 
     st.title(terms["app_title"])
     st.write(terms["app_subtitle"])
@@ -1287,6 +1314,15 @@ def main() -> None:
         st.session_state.waist_position_mm = waist_position_mm
         st.session_state.waist_edge_gap_mm = waist_edge_gap_mm
         st.session_state.grommet_count = int(count)
+
+    current_feedback_signature = _auto_bottom_margin_feedback_signature()
+    if (
+        st.session_state._auto_bottom_margin_feedback is not None
+        and st.session_state._auto_bottom_margin_feedback_signature
+        != current_feedback_signature
+    ):
+        st.session_state._auto_bottom_margin_feedback = None
+        st.session_state._auto_bottom_margin_feedback_signature = None
 
     effective_buttonhole_flip_90 = (
         planner_mode == MODE_BUTTONHOLES and buttonhole_flip_90_ui
