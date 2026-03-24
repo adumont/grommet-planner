@@ -738,6 +738,54 @@ def calculate_layout(
     )
 
 
+def _auto_bottom_margin_for_bust_alignment(
+    length_mm: float,
+    margin_top_mm: float,
+    radius_mm: float,
+    bust_position_mm: float,
+    count: int,
+) -> tuple[float | None, int | None]:
+    if count < 2:
+        return None, None
+
+    start_center = margin_top_mm + radius_mm
+    max_center = length_mm - radius_mm
+    available_span = max_center - start_center
+    bust_offset = bust_position_mm - start_center
+
+    if available_span <= 0 or bust_offset <= 0:
+        return None, None
+
+    tolerance = 1e-9
+    min_step_exclusive = available_span / count
+    max_step_inclusive = available_span / (count - 1)
+
+    best_step: float | None = None
+    best_bust_index: int | None = None
+
+    for bust_index in range(1, count):
+        step = bust_offset / bust_index
+        if step <= 0:
+            continue
+        if (step > (min_step_exclusive + tolerance)) and (
+            step <= (max_step_inclusive + tolerance)
+        ):
+            if best_step is None or step > best_step:
+                best_step = step
+                best_bust_index = bust_index
+
+    if best_step is None or best_bust_index is None:
+        return None, None
+
+    last_center = start_center + ((count - 1) * best_step)
+    bottom_margin_mm = length_mm - (last_center + radius_mm)
+
+    if bottom_margin_mm < -tolerance:
+        return None, None
+
+    return max(0.0, bottom_margin_mm), best_bust_index
+
+
 def build_svg(
     length_mm: float,
     margin_top_mm: float,
@@ -970,8 +1018,44 @@ def main() -> None:
         st.session_state.unit_mode = False
     if "_prev_unit_mode" not in st.session_state:
         st.session_state._prev_unit_mode = st.session_state.unit_mode
+    if "_pending_auto_bottom_margin_calc" not in st.session_state:
+        st.session_state._pending_auto_bottom_margin_calc = False
+    if "_auto_bottom_margin_feedback" not in st.session_state:
+        st.session_state._auto_bottom_margin_feedback = None
 
     terms = _planner_terms(st.session_state.planner_mode)
+
+    if st.session_state._pending_auto_bottom_margin_calc:
+        st.session_state._pending_auto_bottom_margin_calc = False
+        if (
+            st.session_state.planner_mode == MODE_BUTTONHOLES
+            and st.session_state.use_closer_waist_pair
+        ):
+            bottom_margin_mm, bust_index = _auto_bottom_margin_for_bust_alignment(
+                length_mm=float(st.session_state.length_mm),
+                margin_top_mm=float(st.session_state.margin_top_mm),
+                radius_mm=float(st.session_state.diameter_mm) / 2,
+                bust_position_mm=float(st.session_state.waist_position_mm),
+                count=int(st.session_state.item_count),
+            )
+            if bottom_margin_mm is None:
+                st.session_state._auto_bottom_margin_feedback = (
+                    "warning",
+                    "No exact spacing solution found. Try one less buttonhole or move the bust position and try again.",
+                )
+            else:
+                bust_index_value = bust_index if bust_index is not None else 0
+                st.session_state.bust_count = 1
+                st.session_state.margin_bottom_mm = bottom_margin_mm
+                output_factor = 1 / MM_PER_INCH if st.session_state.unit_mode else 1.0
+                st.session_state.margin_bottom_display = bottom_margin_mm * output_factor
+                st.session_state._auto_bottom_margin_feedback = (
+                    "success",
+                    f"Bottom margin set to {bottom_margin_mm * output_factor:.2f} {'in' if st.session_state.unit_mode else 'mm'}. Bust buttonholes reset to 1; button #{bust_index_value + 1} is exactly at the bust.",
+                )
+        else:
+            st.session_state._auto_bottom_margin_feedback = None
+
     st.title(terms["app_title"])
     st.write(terms["app_subtitle"])
 
@@ -1252,6 +1336,25 @@ def main() -> None:
             ),
             height=400,
         )
+
+        if planner_mode == MODE_BUTTONHOLES and use_closer_waist_pair:
+            st.caption(
+                "Set bust cluster to 1 and compute bottom margin so spacing is even, top buttonhole stays at top margin, and one buttonhole lands exactly on bust."
+            )
+            if st.button(
+                "Auto-calculate bottom margin from bust alignment",
+                use_container_width=True,
+            ):
+                st.session_state._pending_auto_bottom_margin_calc = True
+                st.rerun()
+
+            feedback = st.session_state.get("_auto_bottom_margin_feedback")
+            if isinstance(feedback, tuple) and len(feedback) == 2:
+                level, message = feedback
+                if level == "success":
+                    st.success(message)
+                elif level == "warning":
+                    st.warning(message)
 
     metric_cols = st.columns(4)
     metric_cols[0].metric(terms["item_plural"].capitalize(), f"{count}")
