@@ -1217,11 +1217,26 @@ def main() -> None:
             )
             * input_to_mm
         )
+
+        if planner_mode == MODE_BUTTONHOLES:
+            buttonhole_flip_90_ui = st.checkbox(
+                "Flip buttonholes 90°",
+                key="_flip_all_90",
+                help="Rotate buttonhole rectangles by 90° in the diagram and exports.",
+            )
+            buttonhole_flip_last_90_ui = st.checkbox(
+                "Flip last button 90°",
+                key="_flip_last_90",
+                disabled=buttonhole_flip_90_ui,
+                help="Rotate only the last buttonhole by 90° in the diagram and exports.",
+            )
+
         use_closer_waist_pair = st.checkbox(
             f"Closer {terms['line_lower']} {terms['item_plural']}",
             key="use_closer_waist_pair",
             help=f"Places the {terms['line_lower']} {terms['item_plural']} closer together than the standard spacing.",
         )
+
         if planner_mode == MODE_BUTTONHOLES:
             waist_count = st.number_input(
                 "Number of bust buttonholes",
@@ -1237,17 +1252,6 @@ def main() -> None:
                 st.info(
                     f"Bust buttonholes count must be odd. Using {int(waist_count)}."
                 )
-            buttonhole_flip_90_ui = st.checkbox(
-                "Flip buttonholes 90°",
-                key="_flip_all_90",
-                help="Rotate buttonhole rectangles by 90° in the diagram and exports.",
-            )
-            buttonhole_flip_last_90_ui = st.checkbox(
-                "Flip last button 90°",
-                key="_flip_last_90",
-                disabled=buttonhole_flip_90_ui,
-                help="Rotate only the last buttonhole by 90° in the diagram and exports.",
-            )
         else:
             waist_count = st.number_input(
                 "Number of waist grommets",
