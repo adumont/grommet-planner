@@ -1061,7 +1061,7 @@ def main() -> None:
             if bottom_margin_mm is None:
                 st.session_state._auto_bottom_margin_feedback = (
                     "warning",
-                    "No exact spacing solution found. Try with a different number of buttonholes.",
+                    ":material/error: No exact spacing solution found. Try with a different number of buttonholes.",
                 )
                 st.session_state._auto_bottom_margin_feedback_signature = (
                     _auto_bottom_margin_feedback_signature()
@@ -1084,7 +1084,7 @@ def main() -> None:
                 )
                 st.session_state._auto_bottom_margin_feedback = (
                     "success",
-                    f"Bottom margin set to {bottom_margin_mm * output_factor:.2f} {output_unit}. Bust buttonholes reset to 1; button #{bust_index_value + 1} is exactly at the bust. All buttonholes are evenly spaced with a {center_spacing_mm * output_factor:.2f} {output_unit} center-to-center gap.",
+                    f":material/check: Bottom margin set to **{bottom_margin_mm * output_factor:.2f} {output_unit}**. Button #{bust_index_value + 1} is exactly at the bust. All buttonholes are evenly spaced with a **{center_spacing_mm * output_factor:.2f} {output_unit}** center-to-center gap.",
                 )
                 st.session_state._auto_bottom_margin_feedback_signature = (
                     _auto_bottom_margin_feedback_signature()
@@ -1408,7 +1408,7 @@ def main() -> None:
 
             if has_gap_mismatch and upper_gap_display is not None and lower_gap_display is not None:
                 st.warning(
-                    f"Upper/lower edge gaps differ (above bust: {upper_gap_display:.2f} {unit_label}, below bust: {lower_gap_display:.2f} {unit_label}). Use the button below to auto-set bottom margin and make spacing even."
+                    f":material/warning: Upper/lower edge gaps differ (above bust: **{upper_gap_display:.2f} {unit_label}**, below bust: **{lower_gap_display:.2f} {unit_label}**). Use the button below to auto-set bottom margin and make spacing even."
                 )
 
             if st.button(
