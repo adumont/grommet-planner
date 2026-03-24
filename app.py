@@ -1258,6 +1258,10 @@ def main() -> None:
                 disabled=not use_closer_waist_pair,
                 help="How many grommets to place at the waist, evenly spaced and centered on the waist position.",
             )
+        cluster_edge_gap_enabled = (
+            use_closer_waist_pair
+            and (planner_mode != MODE_BUTTONHOLES or int(waist_count) > 1)
+        )
         waist_edge_gap_mm = (
             st.number_input(
                 f"{terms['line']} cluster edge gap ({unit_label})",
@@ -1266,7 +1270,7 @@ def main() -> None:
                 format="%.2f" if unit_mode else "%.1f",
                 key="waist_edge_gap_display",
                 on_change=_update_waist_edge_gap_mm,
-                disabled=not use_closer_waist_pair,
+                disabled=not cluster_edge_gap_enabled,
                 help=f"Edge-to-edge distance between adjacent {terms['line_lower']} {terms['item_plural']}, centered at the {terms['line_lower']} position.",
             )
             * input_to_mm
