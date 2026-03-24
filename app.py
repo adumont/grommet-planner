@@ -1346,12 +1346,29 @@ def main() -> None:
         )
 
         if planner_mode == MODE_BUTTONHOLES and use_closer_waist_pair:
-            st.caption(
-                "Set bust cluster to 1 and compute bottom margin so spacing is even, top buttonhole stays at top margin, and one buttonhole lands exactly on bust."
-            )
+            has_gap_mismatch = False
+            upper_gap_display = lower_gap_display = None
+            if layout.waist_pair_indices is not None:
+                wi_l, wi_r = layout.waist_pair_indices
+                upper_gaps = layout.edge_gaps_mm[:wi_l]
+                lower_gaps = layout.edge_gaps_mm[wi_r:]
+                if upper_gaps and lower_gaps:
+                    upper_gap = upper_gaps[0]
+                    lower_gap = lower_gaps[-1]
+                    has_gap_mismatch = abs(upper_gap - lower_gap) > 1e-9
+                    if has_gap_mismatch:
+                        upper_gap_display = upper_gap * mm_to_output
+                        lower_gap_display = lower_gap * mm_to_output
+
+            if has_gap_mismatch and upper_gap_display is not None and lower_gap_display is not None:
+                st.warning(
+                    f"Upper/lower edge gaps differ (above bust: {upper_gap_display:.2f} {unit_label}, below bust: {lower_gap_display:.2f} {unit_label}). Use the button below to auto-set bottom margin and make spacing even."
+                )
+
             if st.button(
                 "Auto-calculate bottom margin from bust alignment",
                 use_container_width=True,
+                disabled=not has_gap_mismatch,
             ):
                 st.session_state._pending_auto_bottom_margin_calc = True
                 st.rerun()
